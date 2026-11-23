@@ -1,0 +1,86 @@
+name: Build KeySkin unsigned iOS IPA (experimental)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Initialize Tauri iOS project
+        env:
+          CI: 'true'
+        run: npm run tauri -- ios init --ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build unsigned iPhone app
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="$(find src-tauri/gen/apple -maxdepth 2 -name '*.xcodeproj' -type d -print -quit)"
+          test -n "$PROJECT" || { echo 'No Xcode project generated'; exit 1; }
+          echo "Xcode project: $PROJECT"
+          xcodebuild -list -json -project "$PROJECT" > /tmp/keyskin-xcode-list.json
+          SCHEME="$(python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/keyskin-xcode-list.json'))
+          schemes=d.get('project',{}).get('schemes',[])
+          print(next((s for s in schemes if s.lower() not in ('tests','test')), ''))
+          PY
+          )"
+          test -n "$SCHEME" || { cat /tmp/keyskin-xcode-list.json; exit 1; }
+          echo "Scheme: $SCHEME"
+          xcodebuild \
+            -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/keyskin-derived" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
+            build
+
+      - name: Validate and package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPS="$RUNNER_TEMP/keyskin-derived/Build/Products/Release-iphoneos"
+          APP="$(find "$APPS" -maxdepth 1 -name '*.app' -type d -print -quit)"
+          test -n "$APP" || { echo 'No iPhone .app found'; exit 1; }
+          test -f "$APP/Info.plist"
+          EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$APP/Info.plist")"
+          test -f "$APP/$EXECUTABLE"
+          file "$APP/$EXECUTABLE"
+          file "$APP/$EXECUTABLE" | grep -q 'Mach-O' || { echo 'Executable is not Mach-O'; exit 1; }
+          mkdir -p package/Payload
+          cp -R "$APP" package/Payload/
+          (cd package && zip -qry ../KeySkin-v2.0.41-unsigned.ipa Payload)
+          unzip -t KeySkin-v2.0.41-unsigned.ipa | tail -n 2
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeySkin-v2.0.41-unsigned-ipa
+          path: KeySkin-v2.0.41-unsigned.ipa
+          if-no-files-found: error
