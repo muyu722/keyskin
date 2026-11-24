@@ -150,20 +150,10 @@ export function wireFilesAndSettings(): void {
   })
   wireNewProjectChooser()
   newButton.addEventListener("click", () => void startNewDocument())
-  openButton.addEventListener("click", () => {
-  const iosApp = isTauri() &&
-    (/iPad|iPhone|iPod/i.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" &&
-        navigator.maxTouchPoints > 1))
-
-  if (iosApp) {
-    browserOpen.click()
-  } else if (isTauri()) {
-    void runFileOperation("打开", openNative)
-  } else {
-    browserOpen.click()
-  }
-})
+    openButton.addEventListener("click", () => {
+    if (isTauri()) void runFileOperation("打开", openNative)
+    else browserOpen.click()
+  })
   wireRecentPage()
   $("#welcome-recent-open")?.addEventListener("click", () => openButton.click())
   $("#mobile-welcome-open").addEventListener("click", () => openButton.click())
