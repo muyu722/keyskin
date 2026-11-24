@@ -151,10 +151,19 @@ export function wireFilesAndSettings(): void {
   wireNewProjectChooser()
   newButton.addEventListener("click", () => void startNewDocument())
   openButton.addEventListener("click", () => {
-    if (isTauri()) void runFileOperation("打开", openNative)
-    // 文件选择框必须在点击里同步弹出：先等导出确认再 click()，移动端浏览器会因失去用户手势而拦掉选择框。
-    else browserOpen.click()
-  })
+  const iosApp = isTauri() &&
+    (/iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1))
+
+  if (iosApp) {
+    browserOpen.click()
+  } else if (isTauri()) {
+    void runFileOperation("打开", openNative)
+  } else {
+    browserOpen.click()
+  }
+})
   wireRecentPage()
   $("#welcome-recent-open")?.addEventListener("click", () => openButton.click())
   $("#mobile-welcome-open").addEventListener("click", () => openButton.click())
