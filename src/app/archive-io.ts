@@ -301,7 +301,7 @@ export async function loadNativePath(path: string): Promise<boolean> {
       // The source directory may have been moved or pruned; reopen the original skin.
     }
   }
-  const bytes = path.startsWith("content://")
+    const bytes = path.startsWith("content://")
     ? await readFile(path)
     : await readNativeSkinFile(path)
   return openSkinBytes(bytes, path)
