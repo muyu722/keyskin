@@ -37,36 +37,15 @@ jobs:
         run: npm run build
 
       - name: Build unsigned iPhone app
-        shell: bash
-        run: |
-          set -euo pipefail
-          PROJECT="$(find src-tauri/gen/apple -maxdepth 2 -name '*.xcodeproj' -type d -print -quit)"
-          test -n "$PROJECT" || { echo 'No Xcode project generated'; exit 1; }
-          echo "Xcode project: $PROJECT"
-          xcodebuild -list -json -project "$PROJECT" > /tmp/keyskin-xcode-list.json
-          SCHEME="$(python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/keyskin-xcode-list.json'))
-          schemes=d.get('project',{}).get('schemes',[])
-          print(next((s for s in schemes if s.lower() not in ('tests','test')), ''))
-          PY
-          )"
-          test -n "$SCHEME" || { cat /tmp/keyskin-xcode-list.json; exit 1; }
-          echo "Scheme: $SCHEME"
-          xcodebuild \
-            -project "$PROJECT" -scheme "$SCHEME" \
-            -configuration Release -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath "$RUNNER_TEMP/keyskin-derived" \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
-            build
-
+        env:
+          CI: 'true'
+        run: npm run tauri -- ios build --ci --no-sign
       - name: Validate and package unsigned IPA
         shell: bash
         run: |
           set -euo pipefail
-          APPS="$RUNNER_TEMP/keyskin-derived/Build/Products/Release-iphoneos"
-          APP="$(find "$APPS" -maxdepth 1 -name '*.app' -type d -print -quit)"
+          APPS="src-tauri/gen/apple/build"
+          APP="$(find "$APPS" -type d -name '*.app' -print -quit)"
           test -n "$APP" || { echo 'No iPhone .app found'; exit 1; }
           test -f "$APP/Info.plist"
           EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$APP/Info.plist")"
