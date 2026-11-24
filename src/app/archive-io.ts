@@ -553,7 +553,7 @@ export function documentNameForPath(path: string, archive: SkinArchive): string 
 
 export async function writeNativePath(path: string, bytes: Uint8Array): Promise<void> {
   updateFileOperationProgress(90, "正在写入文件…")
-  if (path.startsWith("content://")) {
+  if (path.startsWith("content://") || path.startsWith("file://")) {
     await writeFile(path, bytes)
   } else if (isAndroidTauri()) {
     await invoke("write_file", { path, data: bytes })
