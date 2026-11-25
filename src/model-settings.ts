@@ -171,6 +171,7 @@ export function initializeModelSettings(section: HTMLElement, options: {
   const imageApiKey = $<HTMLInputElement>("image-model-api-key")
   const imageName = $<HTMLInputElement>("image-model-name")
   const addMenu = $<HTMLDetailsElement>("model-profile-add")
+  const addNative = $<HTMLSelectElement>("model-profile-add-native")
   const accountRow = $<HTMLElement>("model-account-row")
   const accountText = $<HTMLElement>("model-account-text")
   const accountAction = $<HTMLButtonElement>("model-account-action")
@@ -223,6 +224,20 @@ export function initializeModelSettings(section: HTMLElement, options: {
   document.addEventListener("pointerdown", (event) => {
     if (addMenu.open && !addMenu.contains(event.target as Node)) addMenu.open = false
   })
+  const useNativeProviderMenu = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  if (useNativeProviderMenu) {
+    // Use the same system picker as the image provider in iOS WebKit.
+    addMenu.hidden = true
+    addNative.closest("label")!.hidden = false
+    addNative.replaceChildren(...MODEL_PROVIDER_PRESETS.map((preset) => new Option(preset.label, preset.id)))
+    addNative.selectedIndex = -1
+    addNative.addEventListener("change", () => {
+      const id = addNative.value
+      addNative.selectedIndex = -1
+      if (id) addProfile(id)
+    })
+  }
   imageProvider.replaceChildren(new Option("不使用", ""), ...IMAGE_MODEL_PRESETS.map((preset) => new Option(preset.label, preset.id)))
 
   const notify = () => section.dispatchEvent(new Event("change", { bubbles: true }))

@@ -164,6 +164,10 @@
 #settings-workspace .model-add-menu > summary { list-style: none; }
 #settings-workspace .model-add-menu > summary::-webkit-details-marker { display: none; }
 #settings-workspace .model-add-menu > .ui-menu { position: absolute; top: calc(100% + var(--space-xs)); right: 0; z-index: 10; width: 260px; max-height: 360px; overflow-y: auto; transform-origin: top right; }
+#settings-workspace .model-add-select[hidden] { display: none; }
+#settings-workspace .model-add-select { position: relative; min-height: var(--mobile-control-height); }
+#settings-workspace .model-add-select:has(> select:focus-visible) { box-shadow: var(--focus-ring); }
+#settings-workspace .model-add-select > select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
 #settings-workspace .model-choices-row { align-items: flex-start; }
 #settings-workspace .model-choices-row > span:first-child { padding-top: var(--space-xs); }
 #settings-workspace .model-choices-panel { display: grid; flex: none; gap: var(--space-sm); width: min(360px, 66%); }

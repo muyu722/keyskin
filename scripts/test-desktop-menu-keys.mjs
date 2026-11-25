@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
-import { chromium, webkit } from 'playwright'
+import { chromium, devices, webkit } from 'playwright'
 import { createServer } from 'vite'
 import { dismissStartupDisclaimer } from '../tests/helpers/open-editor-template.mjs'
 import { bdsFixture } from '../tests/helpers/baidu-fixture.mjs'
@@ -126,5 +126,33 @@ for (const engine of [chromium, webkit]) describe(engine.name(), () => {
     assert.equal(await focused(summary), true)
     await page.keyboard.press('Escape')
     await page.locator('#settings-workspace').waitFor({ state: 'hidden' })
+  })
+
+  test('iPhone 的两个服务商入口使用系统选择器，且可以重复添加同一 API 服务商', async () => {
+    const phone = await browser.newPage({ ...devices['iPhone 13'], reducedMotion: 'reduce' })
+    try {
+      const port = server.httpServer.address().port
+      await phone.route('http://127.0.0.1:4173/**', async route => {
+        await route.fulfill({ response: await route.fetch({ url: route.request().url().replace(':4173/', `:${port}/`) }) })
+      })
+      await phone.goto('http://127.0.0.1:4173/')
+      await dismissStartupDisclaimer(phone)
+      await phone.locator('#mobile-navigation [data-settings-entry="settings"]').tap()
+      await phone.getByRole('button', { name: 'AI 模型', exact: true }).tap()
+
+      const add = phone.getByRole('combobox', { name: '添加服务商', exact: true })
+      const image = phone.locator('#image-model-provider')
+      assert.equal(await add.isVisible(), true)
+      assert.equal(await phone.locator('#model-profile-add').isVisible(), false)
+      assert.equal(await image.evaluate(node => node.localName), 'select')
+      await image.selectOption('openai-image')
+      assert.equal(await image.inputValue(), 'openai-image')
+      for (const count of [1, 2]) {
+        await add.selectOption('openai')
+        assert.equal(await phone.locator('#model-profiles .model-profile').count(), count)
+        assert.equal(await add.inputValue(), '')
+        assert.equal(await focused(phone.locator('#model-api-key')), true)
+      }
+    } finally { await phone.close() }
   })
 })

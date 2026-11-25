@@ -881,7 +881,18 @@
 
             <section id="settings-model-section" class="settings-page" data-settings-panel="model" role="tabpanel" aria-labelledby="settings-model-nav" hidden>
               <section class="settings-group" aria-labelledby="model-chat-title">
-                <div class="settings-group-header"><h3 id="model-chat-title">对话模型</h3><details id="model-profile-add" class="model-add-menu"><summary class="ui-button" data-size="sm"><span class="system-symbol" data-icon="plus" aria-hidden="true"></span>添加服务商</summary><div class="ui-menu" role="menu" aria-label="添加服务商"></div></details></div>
+                <div class="settings-group-header">
+                  <h3 id="model-chat-title">对话模型</h3>
+                  <details id="model-profile-add" class="model-add-menu">
+                    <summary class="ui-button" data-size="sm"><span class="system-symbol" data-icon="plus" aria-hidden="true"></span>添加服务商</summary>
+                    <div class="ui-menu" role="menu" aria-label="添加服务商"></div>
+                  </details>
+                  <label class="ui-button model-add-select" data-size="sm" hidden>
+                    <span class="system-symbol" data-icon="plus" aria-hidden="true"></span>
+                    添加服务商
+                    <select id="model-profile-add-native"></select>
+                  </label>
+                </div>
                 <p class="settings-group-note">AI 设计通过这些模型修改皮肤。Claude 和 ChatGPT 订阅可直接登录账号使用。排在第一位的服务商为默认，AI 面板会记住上次选择的模型。密钥和登录凭据只保存在本机。</p>
                 <ul id="model-profiles" class="model-profiles" aria-label="已配置服务商"></ul>
                 <div id="model-editor" class="model-editor" hidden>
