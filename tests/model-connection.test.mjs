@@ -32,7 +32,7 @@ function setup(invoke) {
   const status = [], busy = [], timers = new Map()
   const context = vm.createContext({
     current: () => group,
-    options: { desktop: true },
+    options: { hasNativeBackend: true },
     setStatus: (...args) => status.push(args),
     setBusy: value => busy.push(value),
     invoke,
@@ -115,7 +115,7 @@ test('switching providers suppresses the previous connection result or error', a
 
 test('the browser-only guard finishes without starting IPC or a deadline', async () => {
   const s = setup(() => { throw new Error('must not invoke') })
-  s.context.options.desktop = false
+  s.context.options.hasNativeBackend = false
   assert.equal(await s.run(), undefined)
   assert.equal(s.status.length, 1)
   assert.equal(s.timers.size, 0)

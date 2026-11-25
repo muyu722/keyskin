@@ -336,7 +336,7 @@ try {
     const section = old.cloneNode(true)
     old.replaceWith(section)
     const { initializeModelSettings } = await import('/src/model-settings.ts')
-    window.desktopModelSettings = initializeModelSettings(section, { desktop: true, icon: () => document.createElement('span'), onSaved() {} })
+    window.desktopModelSettings = initializeModelSettings(section, { hasNativeBackend: true, icon: () => document.createElement('span'), onSaved() {} })
     document.querySelector('#workspace-navigation [data-settings-entry=settings]').click()
     document.querySelector('#settings-model-nav').hidden = false
     ;(await import('/src/app/preferences.ts')).showSettingsPage('model')

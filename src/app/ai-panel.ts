@@ -224,7 +224,7 @@ export function aiDesignErrorMessage(error: unknown): string {
 
 async function runAiDesignRequest(prompt: string, hooks: AiChatRunHooks, files: readonly File[]): Promise<AiChatRunResult> {
   if (!isTauri()) {
-    throw new Error("AI 设计当前仅在桌面应用中可用。")
+    throw new Error("AI 设计当前仅在键设客户端中可用。")
   }
   if (!appState.archive) {
     throw new Error("请先打开一个皮肤项目。")
@@ -710,7 +710,7 @@ function syncModelProfiles(all: ModelConfiguration[]): void {
 }
 
 export const modelSettings = initializeModelSettings($("#settings-model-section"), {
-  desktop: isTauri(),
+  hasNativeBackend: isTauri(),
   icon: symbolSpan,
   onSaved: syncModelProfiles,
 })

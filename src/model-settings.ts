@@ -143,7 +143,7 @@ export function validateImageModel(image: ModelConfiguration | undefined, accoun
  * so switching, adding and deleting entries are all undone by Cancel.
  */
 export function initializeModelSettings(section: HTMLElement, options: {
-  desktop: boolean
+  hasNativeBackend: boolean
   icon(name: string): HTMLElement
   onSaved(models: ModelConfiguration[]): void
 }) {
@@ -398,13 +398,13 @@ export function initializeModelSettings(section: HTMLElement, options: {
 
   async function login(id: string): Promise<void> {
     const label = modelProviderPreset(id).label
-    if (!options.desktop) {
-      setStatus("请在桌面应用中登录账号", "error")
+    if (!options.hasNativeBackend) {
+      setStatus("请在键设客户端中登录账号", "error")
       return
     }
     signingIn = id
     renderAccount()
-    setStatus(`已在浏览器中打开 ${label} 授权页面，完成后回到这里`, "busy")
+    setStatus(`正在等待 ${label} 授权，完成后请返回键设`, "busy")
     try {
       const account = await invoke<{ email: string }>("model_oauth_login", { provider: id, ...await pkce() })
       accounts.set(id, account.email)
@@ -456,8 +456,8 @@ export function initializeModelSettings(section: HTMLElement, options: {
   async function fetchImageModels(report = false): Promise<void> {
     const image = imageDraft
     if (!image) return
-    if (!options.desktop) {
-      if (report) setImageStatus("请在桌面应用中连接模型服务", "error")
+    if (!options.hasNativeBackend) {
+      if (report) setImageStatus("请在键设客户端中连接模型服务", "error")
       return
     }
     if (imageModelPreset(image.provider)?.subscription && !accounts.has(image.provider)) {
@@ -648,8 +648,8 @@ export function initializeModelSettings(section: HTMLElement, options: {
   async function request<T>(pending: string, failure: string, command: string, model: string): Promise<T | undefined> {
     const group = current()
     if (!group) return
-    if (!options.desktop) {
-      setStatus("请在桌面应用中连接模型服务")
+    if (!options.hasNativeBackend) {
+      setStatus("请在键设客户端中连接模型服务")
       return
     }
     const { models: _models, thinkingOverrides: _overrides, ...service } = group
@@ -706,8 +706,8 @@ export function initializeModelSettings(section: HTMLElement, options: {
 
   async function load(): Promise<void> {
     render()
-    if (!options.desktop) {
-      setStatus("模型服务仅在桌面应用中可用")
+    if (!options.hasNativeBackend) {
+      setStatus("模型服务仅在键设客户端中可用")
       return
     }
     try {
@@ -770,7 +770,7 @@ export function initializeModelSettings(section: HTMLElement, options: {
         || JSON.stringify(allModels()) !== JSON.stringify(savedNormalized)
     },
     async save(): Promise<void> {
-      if (!options.desktop) throw new Error("请在桌面应用中保存模型配置")
+      if (!options.hasNativeBackend) throw new Error("请在键设客户端中保存模型配置")
       // Never overwrite a config file we could not read.
       if (loadError) throw new Error(loadError)
       const problem = validateModelProviders(draft, accounts)

@@ -186,7 +186,7 @@ fn wait_for_code(
         match parse_callback(request.lines().next().unwrap_or(""), path, state) {
             None => answer(stream, "404 Not Found", "未找到页面"),
             Some(Ok(code)) => {
-                answer(stream, "200 OK", "登录成功，可以关闭此页面回到键设。");
+                answer(stream, "200 OK", "已收到授权回调，请关闭此页面并返回键设查看结果。");
                 return Ok(code);
             }
             Some(Err(message)) => {
@@ -197,7 +197,17 @@ fn wait_for_code(
     }
 }
 
-fn open_browser(url: &str) -> std::io::Result<()> {
+#[cfg(target_os = "ios")]
+fn open_browser(app: &tauri::AppHandle, url: &str) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
+    app.opener()
+        .open_url(url, Some("inAppBrowser"))
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(not(target_os = "ios"))]
+fn open_browser(_app: &tauri::AppHandle, url: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut command = std::process::Command::new("open");
     #[cfg(target_os = "windows")]
@@ -208,7 +218,11 @@ fn open_browser(url: &str) -> std::io::Result<()> {
     };
     #[cfg(all(unix, not(target_os = "macos")))]
     let mut command = std::process::Command::new("xdg-open");
-    command.arg(url).spawn().map(|_| ())
+    command
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 async fn token_request(
@@ -347,7 +361,7 @@ pub(crate) async fn model_oauth_login(
     params.extend_from_slice(vendor.extra);
     let url = reqwest::Url::parse_with_params(vendor.authorize_url, &params)
         .map_err(|error| error.to_string())?;
-    open_browser(url.as_str()).map_err(|error| format!("无法打开浏览器：{error}"))?;
+    open_browser(&app, url.as_str()).map_err(|error| format!("无法打开浏览器：{error}"))?;
     let path = vendor.path;
     let expected = state.clone();
     let code = tauri::async_runtime::spawn_blocking(move || {

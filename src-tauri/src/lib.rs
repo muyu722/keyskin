@@ -2372,6 +2372,8 @@ pub fn run() {
         .plugin(tauri_plugin_native_share::init())
         .manage(ClientLog(Mutex::new(())))
         .manage(OpenedFiles(Mutex::new(Vec::new())));
+    #[cfg(target_os = "ios")]
+    let builder = builder.plugin(tauri_plugin_opener::init());
     #[cfg(target_os = "macos")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         resource_drag::start_resource_drag,
