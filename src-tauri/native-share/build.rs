@@ -9,5 +9,6 @@ fn main() {
         "stopSourceObserver",
     ])
     .android_path("android")
+    .ios_path("ios")
     .build();
 }

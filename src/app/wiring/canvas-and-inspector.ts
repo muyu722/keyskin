@@ -21,7 +21,8 @@ import { bindAnimationInspectorShell } from "../../animation-inspector.ts"
 import { bindFieldServices } from "../property-rows"
 import { pickAnimationKeys } from "../animation-resource"
 import { populateKeyInspector, renameDocumentTitle } from "../key-inspector"
-import { runFileOperation } from "../file-operations"
+import { runFileOperation, showError } from "../file-operations"
+import { chooseInputFiles } from "../../native-file-input"
 import { sourceTargetFolder, commitSourceUploads, sourceSelection, setSourceTransfer } from "../source-files"
 import { writeToChosenFile } from "../archive-io"
 import { rememberAiDesignModel, syncAiDesignThinking, setAiDesignScope } from "../ai-panel"
@@ -506,7 +507,7 @@ export function wireCanvasAndInspector(): void {
   sourceUploadButton.addEventListener("click", () => {
     if (!appState.archive || !isEditing()) return
     sourceUploadInput.value = ""
-    sourceUploadInput.click()
+    void chooseInputFiles(sourceUploadInput).catch(error => showError(error, "上传文件"))
   })
   sourceUploadInput.addEventListener("change", () => {
     void runFileOperation("上传文件", async () => {

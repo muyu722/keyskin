@@ -13,6 +13,7 @@ import { wireCanvasAndInspector } from "./app/wiring/canvas-and-inspector"
 import { wireFilesAndSettings } from "./app/wiring/files-and-settings"
 import { wireEditingControls } from "./app/wiring/editing-controls"
 import { wireMobileStudio } from "./app/mobile-studio"
+import { wireIOSChrome } from "./app/ios-chrome"
 import { wireWorkspaceNavigation } from "./app/workspace-navigation"
 import { wireResourcesAndStartup } from "./app/wiring/resources-and-startup"
 
@@ -24,3 +25,4 @@ wireResourcesAndStartup()
 
 wireMobileStudio()
 wireWorkspaceNavigation()
+wireIOSChrome()

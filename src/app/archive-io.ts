@@ -20,6 +20,7 @@ import { canvasDeviceValue, type CanvasBackground } from "../canvas-background.t
 import { bakeExportedFonts, offerBakedFontRestore } from "./font-bake-export"
 import { completeBdsPackage } from "../bds-package.ts"
 import { invokeBinary } from "../native-binary.ts"
+import { nativeFileName } from "../native-file-name.ts"
 import { updateHistoryButtons, updateDirty, prepareDocumentReplacement } from "./edit-history"
 import { fileRetentionLimit, recentSourceForPath, recordRecentFile } from "./recent-files"
 import { dismissLayoutOverview } from "./layout-overview"
@@ -301,14 +302,14 @@ export async function loadNativePath(path: string): Promise<boolean> {
       // The source directory may have been moved or pruned; reopen the original skin.
     }
   }
-      const bytes = path.startsWith("content://") || path.startsWith("file://")
+  const bytes = path.startsWith("content://")
     ? await readFile(path)
     : await readNativeSkinFile(path)
   return openSkinBytes(bytes, path)
 }
 
 export function isSupportedSkinPath(path: string): boolean {
-  return path.startsWith("content://") || /\.(bdi|bds|bda|m?ssf|sxi)$/i.test(path)
+  return path.startsWith("content://") || /\.(bdi|bds|bda|m?ssf|sxi)$/i.test(nativeFileName(path))
 }
 
 export async function loadDroppedFile(file: File): Promise<boolean> {
@@ -548,7 +549,7 @@ async function saveNative(saveAs: boolean, format: ExportFormat, suggestedName: 
 export function documentNameForPath(path: string, archive: SkinArchive): string {
   return path.startsWith("content://")
     ? skinFileName(archive.infoField("Name"), archive.format)
-    : path.split(/[\\/]/).pop() || "未命名皮肤"
+    : nativeFileName(path) || "未命名皮肤"
 }
 
 export async function writeNativePath(path: string, bytes: Uint8Array): Promise<void> {

@@ -1,7 +1,13 @@
 use tauri::{plugin::TauriPlugin, Runtime};
 
-#[cfg(target_os = "android")]
+#[cfg(any(target_os = "android", target_os = "ios"))]
 use tauri::{ipc::Channel, plugin::PluginHandle, AppHandle, Manager};
+
+#[cfg(target_os = "ios")]
+tauri::ios_plugin_binding!(init_keyskin_chrome);
+
+#[cfg(target_os = "ios")]
+struct KeySkinChrome<R: Runtime>(PluginHandle<R>);
 
 #[cfg(target_os = "android")]
 struct NativeShare<R: Runtime>(PluginHandle<R>);
@@ -55,7 +61,25 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         app.manage(NativeShare(handle));
         Ok(())
     });
+    #[cfg(target_os = "ios")]
+    let builder = builder.setup(|app, api| {
+        app.manage(KeySkinChrome(api.register_ios_plugin(init_keyskin_chrome)?));
+        Ok(())
+    });
     builder.build()
+}
+
+#[cfg(target_os = "ios")]
+pub async fn sync_ios_chrome<R: Runtime>(
+    app: &AppHandle<R>,
+    snapshot: serde_json::Value,
+    events: Option<Channel<serde_json::Value>>,
+) -> Result<bool, String> {
+    app.state::<KeySkinChrome<R>>()
+        .0
+        .run_mobile_plugin_async("syncChrome", serde_json::json!({ "snapshot": snapshot, "events": events }))
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(target_os = "android")]

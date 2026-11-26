@@ -1503,3 +1503,7 @@ body {
 .ui-font-picker::before {
   content: ""; position: absolute; left: -1px; inset-block: var(--space-xs); width: 1px; background: var(--line-soft); border-radius: var(--radius-full); pointer-events: none;
 }
+:root[data-ios-native-chrome] .ui-mobile-navigation:not([hidden]) { display: none; }
+[data-ios-native-action] { opacity: 0; }
+:where(:root[data-ios-native-project]) .ui-mobile-sidebar { background: transparent; box-shadow: none; }
+:where(:root[data-ios-native-project]) .ui-mobile-sidebar > * { visibility: hidden; }

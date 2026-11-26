@@ -18,6 +18,7 @@ import { confirmDeletion } from "./ask"
 import { openActionMenu } from "./context-menu"
 import { cssTimeMs, playPageSlide } from "../motion"
 import { renderBlobPreview, archiveDemoImage, MissingPreviewImageError, renderBuiltInTemplatePreview, releaseArchivePreview, showMissingPreview } from "../template-preview"
+import { recentDisplayName } from "../native-file-name"
 
 const recentFilesKey = "recent-files"
 
@@ -54,7 +55,7 @@ function readRecentFiles(): RecentFile[] {
         && typeof item.name === "string"
         && typeof item.at === "number"
         && (item.source === undefined || typeof item.source === "string"),
-    )
+    ).map(item => ({ ...item, name: recentDisplayName(item.path, item.name) }))
   } catch {
     return []
   }

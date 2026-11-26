@@ -820,8 +820,19 @@ fn valid_share_filename(name: &str) -> bool {
         )
 }
 
+fn local_skin_path(path: &str) -> Result<std::borrow::Cow<'_, Path>, String> {
+    if !path.starts_with("file://") {
+        return Ok(std::borrow::Cow::Borrowed(Path::new(path)));
+    }
+    let url = reqwest::Url::parse(path).map_err(|error| error.to_string())?;
+    url.to_file_path()
+        .map(std::borrow::Cow::Owned)
+        .map_err(|_| "无效的本地文件地址".into())
+}
+
 fn read_file_bytes(path: &str) -> Result<Vec<u8>, String> {
-    let size = fs::metadata(path).map_err(|error| error.to_string())?.len();
+    let path = local_skin_path(path)?;
+    let size = fs::metadata(&path).map_err(|error| error.to_string())?.len();
     if size > MAX_ARCHIVE_BYTES {
         return Err("skin file exceeds 64 MB".into());
     }
@@ -838,7 +849,9 @@ async fn read_file(path: String) -> Result<tauri::ipc::Response, String> {
 
 #[tauri::command]
 async fn skin_file_size(path: String) -> Result<u64, String> {
-    let size = fs::metadata(path).map_err(|error| error.to_string())?.len();
+    let size = fs::metadata(local_skin_path(&path)?)
+        .map_err(|error| error.to_string())?
+        .len();
     if size > MAX_ARCHIVE_BYTES {
         return Err("skin file exceeds 64 MB".into());
     }
@@ -854,7 +867,7 @@ async fn skin_file_stamp(app: tauri::AppHandle, path: String) -> Result<[u64; 2]
     }
     #[cfg(not(target_os = "android"))]
     let _ = app;
-    let metadata = fs::metadata(path).map_err(|error| error.to_string())?;
+    let metadata = fs::metadata(local_skin_path(&path)?).map_err(|error| error.to_string())?;
     let modified = metadata
         .modified()
         .ok()
@@ -1025,6 +1038,7 @@ async fn read_skin_file(
     path: String,
     progress: tauri::ipc::Channel<[u64; 2]>,
 ) -> Result<tauri::ipc::Response, String> {
+    let path = local_skin_path(&path)?;
     let size = fs::metadata(&path)
         .map_err(|error| error.to_string())?
         .len();
@@ -2364,6 +2378,21 @@ mod tests {
     }
 }
 
+#[tauri::command]
+async fn sync_ios_chrome(
+    app: tauri::AppHandle,
+    snapshot: serde_json::Value,
+    events: Option<tauri::ipc::Channel<serde_json::Value>>,
+) -> Result<bool, String> {
+    #[cfg(target_os = "ios")]
+    return tauri_plugin_native_share::sync_ios_chrome(&app, snapshot, events).await;
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = (app, snapshot, events);
+        Ok(false)
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -2410,6 +2439,7 @@ pub fn run() {
         model_oauth_cancel,
         model_oauth_logout,
         model_oauth_token,
+        sync_ios_chrome,
         prepare_source_directory,
         create_source_workspace,
         open_source_workspace,
@@ -2457,6 +2487,7 @@ pub fn run() {
         model_oauth_cancel,
         model_oauth_logout,
         model_oauth_token,
+        sync_ios_chrome,
         prepare_source_directory,
         create_source_workspace,
         open_source_workspace,

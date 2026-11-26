@@ -16,6 +16,7 @@ import { IniDocument } from "./ini"
 import type { TextVisual, VisualResolver } from "./atlas"
 import { bindListActionKeys, bindListboxKeys, emptyState, hydrateShortcuts, listToolbar, searchField } from "./dom-element"
 import type { NativeImagePickerPayload } from "./app/types"
+import { chooseInputFiles } from "./native-file-input"
 
 type ResourcePayload = { path: string; dataURL: string }[]
 
@@ -671,7 +672,13 @@ for (const button of libraryButtons("[data-library-mode]")) {
 }
 libraryApply.addEventListener("click", () => { if (librarySelected) emitLibrary("style-library-apply", librarySelected) })
 libraryNew.addEventListener("click", () => emitLibrary("style-library-add"))
-libraryImport.addEventListener("click", () => { libraryImportInput.value = ""; libraryImportInput.click() })
+libraryImport.addEventListener("click", () => {
+  libraryImportInput.value = ""
+  void chooseInputFiles(libraryImportInput).catch(error => {
+    libraryImport.title = String(error)
+    libraryImport.setAttribute("aria-label", `导入图片失败：${String(error)}`)
+  })
+})
 libraryImportInput.addEventListener("change", async () => {
   const file = libraryImportInput.files?.[0]
   if (!file || libraryImport.disabled || !library?.editable) return

@@ -8,11 +8,21 @@ permissions:
 
 jobs:
   build-ios:
-    runs-on: macos-15-intel
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Select Xcode with the iOS 26 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "iOS SDK: $SDK_VERSION"
+          test "${SDK_VERSION%%.*}" -ge 26
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -6,6 +6,7 @@ import { commitBatch, isEditing, updateDirty } from "./edit-history"
 import { refreshPreview } from "./preview-render"
 import { populateKeyInspector } from "./key-inspector"
 import { showError, showStatus } from "./file-operations"
+import { chooseInputFiles } from "../native-file-input"
 import { styleConfigPath } from "./config-context"
 import { fontImportInput, theme } from "./dom"
 import { embeddedFontPath, loadEmbeddedFont } from "../atlas.ts"
@@ -82,7 +83,11 @@ export function skinFontField(scope = theme.value): HTMLElement | undefined {
   row.id = "font-file-field"
   row.title = hint
   const actions = element("span", "ui-field-actions")
-  const upload = iconButton("upload", "导入字体文件", () => { fontImportInput.dataset.theme = scope; fontImportInput.value = ""; fontImportInput.click() })
+  const upload = iconButton("upload", "导入字体文件", () => {
+    fontImportInput.dataset.theme = scope
+    fontImportInput.value = ""
+    void chooseInputFiles(fontImportInput).catch(error => showError(error, "导入字体"))
+  })
   upload.id = "font-import"
   upload.disabled = !isEditing()
   const remove = iconButton("trash-2", "移除皮肤字体", () => removeSelectedFont(scope))

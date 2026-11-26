@@ -10,7 +10,8 @@ import { ask, bindDialog } from "./ask.ts"
 import { deleteLayoutTemplate, layoutTemplates, loadLayoutTemplate, saveLayoutTemplate, type LayoutTemplate } from "../layout-templates.ts"
 import { source } from "./canvas-interaction"
 import { commitText, commitTextChanges, isEditing } from "./edit-history"
-import { showStatus } from "./file-operations"
+import { showError, showStatus } from "./file-operations"
+import { chooseInputFiles } from "../native-file-input"
 import { layoutLabel } from "./file-tree"
 import { appState } from "./state"
 import { refreshSxiDocument } from "./sxi-documents"
@@ -56,7 +57,7 @@ export function openLayoutConversionDialog(): void {
   const upload = element("button", "ui-button")
   upload.type = "button"
   upload.textContent = "上传模板…"
-  upload.addEventListener("click", () => file.click())
+  upload.addEventListener("click", () => void chooseInputFiles(file).catch(error => showError(error, "上传模板")))
   const remove = iconButton("trash-2", "删除模板")
   remove.id = "layout-conversion-delete"
   remove.disabled = true

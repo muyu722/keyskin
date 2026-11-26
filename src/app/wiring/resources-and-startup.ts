@@ -23,6 +23,7 @@ import { autoSliceSelectedImage, drawAtlas, finishAtlasEdits, scheduleAtlasDraw,
 import { type TileRect, duplicateTileSlice } from "../../tiles.ts"
 import { type Change } from "../../history.ts"
 import { showStatus, runFileOperation, showError } from "../file-operations"
+import { chooseInputFiles } from "../../native-file-input"
 import { resourceRootPath, setLayoutImageBytes, openLayoutImageDialog, syncLayoutImageConfig } from "../layout-image-replace"
 import { isSupportedSkinPath, loadDroppedPath, loadDroppedSourceWorkspace, loadNativePath, restoreLastSourceWorkspace } from "../archive-io"
 import { canvasBackgroundFromDevice } from "../../canvas-background.ts"
@@ -218,7 +219,7 @@ export function wireResourcesAndStartup(): void {
   resourceUploadButton.addEventListener("click", () => {
     if (!appState.archive || !isEditing()) return
     resourceUploadInput.value = ""
-    resourceUploadInput.click()
+    void chooseInputFiles(resourceUploadInput).catch(error => showError(error, "导入图片"))
   })
   resourceDownloadButton.addEventListener("click", () => {
     void runFileOperation("下载资源", downloadResourceSelection)

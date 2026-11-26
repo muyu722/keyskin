@@ -5,7 +5,8 @@ import { appState } from "./state"
 import { resourceCount, resourceGallery, resourceSearch, resourceDownloadButton } from "./dom"
 import { playSoundPath, releaseKeySound } from "./canvas-interaction"
 import { isEditing } from "./edit-history"
-import { runFileOperation } from "./file-operations"
+import { runFileOperation, showError } from "./file-operations"
+import { chooseInputFiles } from "../native-file-input"
 import { uploadKeySound } from "./resource-inspector"
 import type { SoundEntry } from "./types"
 import { bindResourceCard, selectGalleryItem, syncResourceSelection } from "./resource-gallery"
@@ -34,7 +35,7 @@ export function renderSoundLibrary(entries: SoundEntry[], onSelect: () => void, 
       }
     }, { once: true })
     input.addEventListener("cancel", () => input.remove(), { once: true })
-    input.click()
+    void chooseInputFiles(input).catch(error => { input.remove(); showError(error, "选择音效") })
   }
   const toolbar = listToolbar({ create: { label: "添加音效", title: "添加音效（OGG / WAV / AIFF / MP3）", run: () => chooseFile(), disabled: !isEditing() } })
   const list = element("div", "ui-sound-list")
