@@ -8,7 +8,7 @@ type ChromeEvent = { kind: "tab" | "action" | "project" | "segment" | "search" |
 type ChromeItem = { id: string; title: string; label: string; icon?: string; enabled: boolean; selected: boolean; primary: boolean; busy: boolean }
 type ChromeAction = { item: ChromeItem; x: number; y: number; width: number; height: number }
 
-const actionSelector = 'button, summary.ui-button, [role="button"].ui-button'
+const actionSelector = 'button, summary.ui-button, summary.ui-icon-button, [role="button"].ui-button, [role="button"].ui-icon-button'
 const tabItems = [
   ["home", "首页", "house", "files"],
   ["edit", "编辑", "sliders-horizontal", "overview"],
@@ -264,7 +264,8 @@ export function wireIOSChrome(): void {
       }
     }
     if (!projectOpen) for (const element of controls) {
-      if (element.closest("#mobile-navigation, #workspace-navigation, #preview, .simulation, .ui-project-card, .ui-segmented, #files, .ui-menu")
+      if (element.closest("#mobile-navigation, #workspace-navigation, #preview, .simulation, .ui-project-card, .ui-segmented, #files")
+        || (element.closest(".ui-menu") && !element.matches(".ui-button, .ui-icon-button"))
         || element.matches('[role="tab"], [role="option"], [role="treeitem"]')) continue
       const rect = element.getBoundingClientRect()
       const parentFrame = element.ownerDocument.defaultView?.frameElement
