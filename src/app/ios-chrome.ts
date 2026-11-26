@@ -4,7 +4,7 @@ import { isTauri, mobilePortraitQuery } from "./canvas-interaction"
 import { appState } from "./state"
 import { closeDialog } from "../motion"
 
-type ChromeEvent = { kind: "tab" | "action" | "project" | "segment" | "search"; id: string; x?: number; y?: number }
+type ChromeEvent = { kind: "tab" | "action" | "project" | "segment" | "search" | "pan"; id: string; x?: number; y?: number }
 type ChromeItem = { id: string; title: string; label: string; icon?: string; enabled: boolean; selected: boolean; primary: boolean; busy: boolean }
 type ChromeAction = { item: ChromeItem; x: number; y: number; width: number; height: number }
 
@@ -69,6 +69,7 @@ export function wireIOSChrome(): void {
   const activeElements = new Set<HTMLElement>()
   const frameDocuments = new WeakSet<Document>()
   const accessibility = new WeakMap<HTMLElement, string | null>()
+  const tabStops = new WeakMap<HTMLElement, string | null>()
   let nextId = 0
   let frame = 0
   let pending = false
@@ -150,6 +151,21 @@ export function wireIOSChrome(): void {
   events.onmessage = event => {
     if (event.kind === "tab") {
       if (!document.querySelector("dialog[open]")) route(event.id)?.click()
+    } else if (event.kind === "pan") {
+      const element = actions.get(event.id)
+      if (!element?.isConnected || event.x === undefined || event.y === undefined) return
+      const direction = Math.abs(event.y) >= Math.abs(event.x) ? "y" : "x"
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+        const styles = getComputedStyle(parent)
+        if (direction === "y" && parent.scrollHeight > parent.clientHeight && /auto|scroll/.test(styles.overflowY)) {
+          parent.scrollTop -= event.y
+          break
+        }
+        if (direction === "x" && parent.scrollWidth > parent.clientWidth && /auto|scroll/.test(styles.overflowX)) {
+          parent.scrollLeft -= event.x
+          break
+        }
+      }
     } else if (event.kind === "action") {
       const element = actions.get(event.id)
       if (!element?.isConnected || buttonDisabled(element) || event.x === undefined || event.y === undefined
@@ -186,13 +202,19 @@ export function wireIOSChrome(): void {
       const hidden = accessibility.get(element)
       if (hidden == null) element.removeAttribute("aria-hidden")
       else element.setAttribute("aria-hidden", hidden)
+      const tabStop = tabStops.get(element)
+      if (tabStop == null) element.removeAttribute("tabindex")
+      else element.setAttribute("tabindex", tabStop)
       accessibility.delete(element)
+      tabStops.delete(element)
       activeElements.delete(element)
     }
     for (const element of visible) if (!activeElements.has(element)) {
       accessibility.set(element, element.getAttribute("aria-hidden"))
+      tabStops.set(element, element.getAttribute("tabindex"))
       element.setAttribute("data-ios-native-action", "")
       element.setAttribute("aria-hidden", "true")
+      element.tabIndex = -1
       activeElements.add(element)
     }
   }
@@ -206,7 +228,7 @@ export function wireIOSChrome(): void {
     const width = viewport?.width ?? window.innerWidth
     const height = viewport?.height ?? window.innerHeight
     const keyboard = root.dataset.keyboardOpen === "true" || height < window.innerHeight * 0.8
-    const modal = document.querySelector<HTMLDialogElement>("dialog:modal:last-of-type")
+    const modal = (CSS.supports("selector(dialog:modal)") ? document.querySelector<HTMLDialogElement>("dialog:modal:last-of-type") : null)
       ?? [...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].at(-1)
     const projectOpen = project.open && (!modal || modal === project)
     const activeTab = settings.hidden
@@ -236,6 +258,7 @@ export function wireIOSChrome(): void {
         frameDocuments.add(content)
         observer.observe(content.documentElement, changes)
         content.addEventListener("scroll", schedule, true)
+        content.addEventListener("click", preventWebTap, true)
       }
     }
     if (!projectOpen) for (const element of controls) {
@@ -268,7 +291,7 @@ export function wireIOSChrome(): void {
     if (signature === previous) { syncActionElements(nextActions); return }
     sending = true
     try {
-      supported = await invoke<boolean>("sync_ios_chrome", { snapshot, events: supported === undefined ? events : null })
+      supported = await invoke<boolean>("sync_ios_chrome", { snapshot, events })
       if (!supported) return
       previous = signature
       actionOffsetX = offsetX
@@ -285,6 +308,12 @@ export function wireIOSChrome(): void {
     }
   }
 
+  function preventWebTap(event: MouseEvent): void {
+    if (!event.isTrusted || !(event.target as HTMLElement | null)?.closest?.("[data-ios-native-action]")) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  }
+
   const observer = new MutationObserver(schedule)
   const changes: MutationObserverInit = {
     subtree: true, childList: true, characterData: true, attributes: true,
@@ -293,8 +322,8 @@ export function wireIOSChrome(): void {
   }
   observer.observe(root, changes)
   document.addEventListener("load", schedule, true)
-  const resize = new ResizeObserver(schedule)
-  resize.observe(document.body)
+  if (typeof ResizeObserver === "function") new ResizeObserver(schedule).observe(document.body)
+  document.addEventListener("click", preventWebTap, true)
   document.addEventListener("scroll", schedule, true)
   window.addEventListener("resize", schedule)
   window.visualViewport?.addEventListener("resize", schedule)

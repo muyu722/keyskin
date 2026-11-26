@@ -47,7 +47,7 @@ private struct ChromeSnapshot: Decodable {
 
 private struct ChromeArgs: Decodable {
     let snapshot: ChromeSnapshot
-    let events: Channel?
+    let events: Channel
 }
 
 private struct ChromeEvent: Encodable {
@@ -126,10 +126,13 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         project.translatesAutoresizingMaskIntoConstraints = false
         let idealWidth = project.widthAnchor.constraint(equalToConstant: 340)
         idealWidth.priority = .defaultHigh
+        let safeBottom = project.bottomAnchor.constraint(equalTo: overlay.safeAreaLayoutGuide.bottomAnchor)
+        safeBottom.priority = .defaultHigh
         NSLayoutConstraint.activate([
             project.leadingAnchor.constraint(equalTo: overlay.leadingAnchor),
             project.topAnchor.constraint(equalTo: overlay.safeAreaLayoutGuide.topAnchor),
-            project.bottomAnchor.constraint(equalTo: overlay.safeAreaLayoutGuide.bottomAnchor),
+            project.bottomAnchor.constraint(lessThanOrEqualTo: overlay.keyboardLayoutGuide.topAnchor),
+            safeBottom,
             project.widthAnchor.constraint(lessThanOrEqualTo: overlay.widthAnchor, multiplier: 0.88),
             idealWidth
         ])
@@ -147,8 +150,8 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         return false
     }
 
-    func apply(_ snapshot: ChromeSnapshot, events: Channel?) {
-        if let events = events { self.events = events }
+    func apply(_ snapshot: ChromeSnapshot, events: Channel) {
+        self.events = events
         overlay.overrideUserInterfaceStyle = snapshot.dark ? .dark : .light
         tabController.overrideUserInterfaceStyle = overlay.overrideUserInterfaceStyle
         for (key, value) in snapshot.icons where icons[key] == nil {
@@ -212,6 +215,7 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
             if buttons[item.id] == nil {
                 button.accessibilityIdentifier = "keyskin-native-\(item.id)"
                 button.addTarget(self, action: #selector(activate(_:event:)), for: .primaryActionTriggered)
+                button.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(pan(_:))))
                 buttons[item.id] = button
                 overlay.actions.addSubview(button)
             }
@@ -230,6 +234,14 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         guard let id = buttons.first(where: { $0.value === sender })?.key else { return }
         let point = event?.allTouches?.first?.location(in: overlay) ?? CGPoint(x: sender.frame.midX, y: sender.frame.midY)
         send(ChromeEvent(kind: "action", id: id, x: (point.x - origin.x) / scale, y: (point.y - origin.y) / scale))
+    }
+
+    @objc private func pan(_ gesture: UIPanGestureRecognizer) {
+        guard gesture.state == .changed, let view = gesture.view,
+              let id = buttons.first(where: { $0.value === view })?.key else { return }
+        let delta = gesture.translation(in: overlay)
+        gesture.setTranslation(.zero, in: overlay)
+        send(ChromeEvent(kind: "pan", id: id, x: delta.x / scale, y: delta.y / scale))
     }
 }
 

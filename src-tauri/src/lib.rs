@@ -2382,7 +2382,7 @@ mod tests {
 async fn sync_ios_chrome(
     app: tauri::AppHandle,
     snapshot: serde_json::Value,
-    events: Option<tauri::ipc::Channel<serde_json::Value>>,
+    events: tauri::ipc::Channel<serde_json::Value>,
 ) -> Result<bool, String> {
     #[cfg(target_os = "ios")]
     return tauri_plugin_native_share::sync_ios_chrome(&app, snapshot, events).await;

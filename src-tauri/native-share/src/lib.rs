@@ -73,7 +73,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 pub async fn sync_ios_chrome<R: Runtime>(
     app: &AppHandle<R>,
     snapshot: serde_json::Value,
-    events: Option<Channel<serde_json::Value>>,
+    events: Channel<serde_json::Value>,
 ) -> Result<bool, String> {
     app.state::<KeySkinChrome<R>>()
         .0
