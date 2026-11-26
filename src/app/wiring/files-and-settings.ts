@@ -266,7 +266,8 @@ export function wireFilesAndSettings(): void {
     const button = (event.target as Element).closest<HTMLButtonElement>("[data-workspace-page], [data-mobile-page]")
     if (!button) return
     event.stopImmediatePropagation()
-    void leaveSettings(button)
+    // Let the original click finish before replaying it after settings closes.
+    queueMicrotask(() => void leaveSettings(button))
   }, true)
   for (const button of settingsNavItems) {
     button.addEventListener("click", () => showSettingsPage(button.dataset.settingsPage ?? "appearance"))

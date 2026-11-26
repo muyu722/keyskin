@@ -127,6 +127,8 @@ export function wireIOSChrome(): void {
       const title = element.querySelector(".nav-label")?.textContent?.trim() ?? element.innerText.trim()
       if (!title) return []
       const row = item(element, title)
+      const current = element.getAttribute("aria-current")
+      if (current && current !== "false") row.selected = true
       projectActions.set(row.id, element)
       const heading = element.matches(".nav-section, .source-root-row, .source-folder-row")
       let depth = 0
