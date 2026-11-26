@@ -62,10 +62,79 @@ jobs:
           test -f "$APP/$EXECUTABLE"
           file "$APP/$EXECUTABLE"
           file "$APP/$EXECUTABLE" | grep -q 'Mach-O' || { echo 'Executable is not Mach-O'; exit 1; }
-          mkdir -p package/Payload
-          cp -R "$APP" package/Payload/
-          (cd package && zip -qry ../KeySkin-v2.0.41-unsigned.ipa Payload)
-          unzip -t KeySkin-v2.0.41-unsigned.ipa | tail -n 2
+          xcrun dwarfdump --uuid "$APP/$EXECUTABLE"
+
+          python3 - "$APP" "$EXECUTABLE" KeySkin-v2.0.41-unsigned.ipa <<'PY'
+          import json
+          import os
+          import plistlib
+          import stat
+          import sys
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+          app, executable_name, output = sys.argv[1:]
+          app = Path(app)
+          executable = app / executable_name
+          executable_mode = executable.stat().st_mode
+          require(not executable.is_symlink() and stat.S_ISREG(executable_mode) and executable_mode & stat.S_IXUSR,
+                  "Source executable must be an executable regular file")
+
+          config = json.loads(Path("src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+          plist_path = app / "Info.plist"
+          info = plistlib.loads(plist_path.read_bytes())
+          require(info["CFBundleIdentifier"] == config["identifier"], "Source bundle ID differs from Tauri configuration")
+          info.update(CFBundleExecutable="KeySkin", CFBundleDisplayName=config["productName"])
+
+          bundle = "Payload/KeySkin.app"
+          plist_entry = f"{bundle}/Info.plist"
+          executable_entry = f"{bundle}/KeySkin"
+          with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+              archive.write(app.parent, "Payload")
+              archive.write(app, bundle)
+              for path in sorted(app.rglob("*")):
+                  name = f"{bundle}/{path.relative_to(app).as_posix()}"
+                  if path == plist_path:
+                      entry = ZipInfo.from_file(path, plist_entry)
+                      archive.writestr(entry, plistlib.dumps(info, fmt=plistlib.FMT_BINARY), compress_type=ZIP_DEFLATED)
+                  elif path.is_symlink():
+                      entry = ZipInfo(name)
+                      entry.create_system = 3
+                      entry.external_attr = path.lstat().st_mode << 16
+                      archive.writestr(entry, os.fsencode(os.readlink(path)))
+                  else:
+                      archive.write(path, executable_entry if path == executable else name)
+
+          with ZipFile(output) as archive:
+              corrupt = archive.testzip()
+              require(corrupt is None, f"IPA contains a corrupt entry: {corrupt}")
+              names = archive.namelist()
+              require(len(names) == len(set(names)), "IPA contains duplicate paths")
+              require(all(entry.filename.isascii() or entry.flag_bits & 0x800 for entry in archive.infolist()),
+                      "IPA contains a non-ASCII path without a UTF-8 flag")
+              require(all(name == "Payload/" or name.startswith(f"{bundle}/") for name in names),
+                      "IPA contains a path outside Payload/KeySkin.app")
+              require(f"{bundle}/" in names and plist_entry in names and executable_entry in names,
+                      "IPA is missing the application directory, Info.plist or KeySkin executable")
+              require(executable_name == "KeySkin" or f"{bundle}/{executable_name}" not in names,
+                      "IPA still contains the original executable path")
+
+              packaged_info = plistlib.loads(archive.read(plist_entry))
+              require(packaged_info == info and packaged_info["CFBundleSupportedPlatforms"] == ["iPhoneOS"],
+                      "Packaged Info.plist does not match the validated iPhone bundle metadata")
+              entry = archive.getinfo(executable_entry)
+              mode = entry.external_attr >> 16
+              require(entry.create_system == 3 and stat.S_ISREG(mode)
+                      and stat.S_IMODE(mode) == stat.S_IMODE(executable_mode),
+                      "IPA did not preserve executable file permissions")
+              require(archive.read(entry) == executable.read_bytes(), "IPA executable differs from the compiled binary")
+              print(f"Validated {executable_entry} ({stat.S_IMODE(mode):04o}) using default ZipFile decoding")
+              print(f"Display name: {packaged_info['CFBundleDisplayName']}; bundle ID: {packaged_info['CFBundleIdentifier']}")
+          PY
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
