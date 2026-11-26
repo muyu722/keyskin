@@ -47,7 +47,7 @@ private struct ChromeSnapshot: Decodable {
 
 private struct ChromeArgs: Decodable {
     let snapshot: ChromeSnapshot
-    let events: Channel
+    let events: Channel?
 }
 
 private struct ChromeEvent: Encodable {
@@ -150,8 +150,8 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         return false
     }
 
-    func apply(_ snapshot: ChromeSnapshot, events: Channel) {
-        self.events = events
+    func apply(_ snapshot: ChromeSnapshot, events: Channel?) {
+        if let events { self.events = events }
         overlay.overrideUserInterfaceStyle = snapshot.dark ? .dark : .light
         tabController.overrideUserInterfaceStyle = overlay.overrideUserInterfaceStyle
         for (key, value) in snapshot.icons where icons[key] == nil {

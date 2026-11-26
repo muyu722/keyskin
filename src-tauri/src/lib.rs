@@ -2381,14 +2381,18 @@ mod tests {
 #[tauri::command]
 async fn sync_ios_chrome(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     snapshot: serde_json::Value,
-    events: tauri::ipc::Channel<serde_json::Value>,
+    events: Option<tauri::ipc::JavaScriptChannelId>,
 ) -> Result<bool, String> {
     #[cfg(target_os = "ios")]
-    return tauri_plugin_native_share::sync_ios_chrome(&app, snapshot, events).await;
+    {
+        let events = events.map(|id| id.channel_on(webview));
+        tauri_plugin_native_share::sync_ios_chrome(&app, snapshot, events).await
+    }
     #[cfg(not(target_os = "ios"))]
     {
-        let _ = (app, snapshot, events);
+        let _ = (app, webview, snapshot, events);
         Ok(false)
     }
 }

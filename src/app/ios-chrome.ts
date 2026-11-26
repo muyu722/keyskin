@@ -291,7 +291,8 @@ export function wireIOSChrome(): void {
     if (signature === previous) { syncActionElements(nextActions); return }
     sending = true
     try {
-      supported = await invoke<boolean>("sync_ios_chrome", { snapshot, events })
+      // Register the channel once so Tauri keeps a single sequence for native events.
+      supported = await invoke<boolean>("sync_ios_chrome", supported === undefined ? { snapshot, events } : { snapshot })
       if (!supported) return
       previous = signature
       actionOffsetX = offsetX
