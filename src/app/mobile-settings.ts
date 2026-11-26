@@ -2,7 +2,7 @@ import { element } from "../dom-element"
 import { createIcon } from "../icons"
 import { $, settingsWorkspace } from "./dom"
 import { ask } from "./ask"
-import { nativeSettings } from "./preferences"
+import { nativeSettings, showSettingsPage } from "./preferences"
 import { mobilePortraitQuery } from "./canvas-interaction"
 
 /** 设置首页复用原控件，预览、保存和取消仍由 settings 的草稿负责。 */
@@ -29,7 +29,7 @@ export function wireMobileSettings(): void {
     row.before(placeholder)
     placements.push({ row, placeholder, host })
   }
-  const link = (host: HTMLElement, label: string, action: () => void, value = "") => {
+  const link = (host: HTMLElement, label: string, action: (event: MouseEvent) => void, value = "") => {
     const button = element("button", "ui-list-item")
     button.type = "button"
     button.append(Object.assign(element("span"), { textContent: label }))
@@ -39,16 +39,16 @@ export function wireMobileSettings(): void {
     host.append(button)
     return button
   }
-  const open = (page: string) => settingsWorkspace.querySelector<HTMLButtonElement>(`[data-settings-page="${page}"]`)!.click()
+  const open = (page: string) => (event: MouseEvent) => showSettingsPage(page, event)
   const appearance = group("外观", "paintbrush")
   for (const id of ["#app-theme", "#interface-accent", "#window-material-opacity", "#settings-layout-guides"]) move(id, appearance)
-  link(appearance, "更多外观设置", () => open("appearance"))
+  link(appearance, "更多外观设置", open("appearance"))
   const editing = group("编辑", "sliders-horizontal")
   for (const id of ["#default-device", "#editor-coordinate-snap", "#reduce-interface-motion"]) move(id, editing)
-  link(editing, "预览与画布", () => open("canvas"))
-  link(editing, "源代码", () => open("source"))
-  if (!$("#settings-adb-nav").hidden) link(editing, "ADB 预览", () => open("adb"))
-  link(editing, "AI 模型", () => $(".mobile-model-link").click())
+  link(editing, "预览与画布", open("canvas"))
+  link(editing, "源代码", open("source"))
+  if (!$("#settings-adb-nav").hidden) link(editing, "ADB 预览", open("adb"))
+  link(editing, "AI 模型", open("model"))
   const data = group("数据", "hard-drive")
   const storage = element("div", "ui-list-item")
   const storageLabel = element("span", "ui-list-item-text")
@@ -57,7 +57,7 @@ export function wireMobileSettings(): void {
   storage.append(storageLabel, size)
   data.append(storage)
   if (nativeSettings) {
-    link(data, "文件", () => open("files"))
+    link(data, "文件", open("files"))
     const clear = $("#recent-clear")
     const action = link(data, "清除记录", async () => {
       const result = await ask({ title: "清除最近打开记录？", detail: "只移除记录，不删除皮肤文件。此操作不可撤销。", deletion: true,
@@ -70,13 +70,13 @@ export function wireMobileSettings(): void {
     syncClear()
   }
   const about = group("关于", "info")
-  link(about, "版本", () => open("about"), $("#about-update").dataset.currentVersion)
+  link(about, "版本", open("about"), $("#about-update").dataset.currentVersion)
   const project = Object.assign(element("a", "ui-list-item"), { href: "https://github.com/rekazer0/keyskin", target: "_blank", rel: "noreferrer" })
   project.append(Object.assign(element("span"), { textContent: "项目主页（GitHub）" }), createIcon("arrow-up-right"))
   about.append(project)
-  link(about, "帮助与反馈", () => open("about"))
-  link(about, $("#about-disclaimer-title").textContent!, () => {
-    open("about")
+  link(about, "帮助与反馈", open("about"))
+  link(about, $("#about-disclaimer-title").textContent!, event => {
+    showSettingsPage("about", event)
     $("#about-disclaimer-title").scrollIntoView({ block: "start" })
   })
   const footer = element("p", "ui-field-note mobile-settings-note")

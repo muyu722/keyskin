@@ -10,7 +10,7 @@ import { Channel, invoke } from "@tauri-apps/api/core"
 import { isAndroidTauri, mobilePortraitQuery } from "./canvas-interaction"
 import { setMobilePane, selectChoice } from "./mobile-layout"
 import { selectFile } from "./navigation"
-import { nativeSettings, showSettingsPage } from "./preferences"
+import { focusSettingsTitle, nativeSettings, showSettingsPage } from "./preferences"
 import { setGuidesVisible } from "./preview-render"
 import { $, canvasWrap, mode, theme, orientation, device, settingsWorkspace, files, mobileAppMore, resourceInspector, resourceListTitle, newButton, inspectorTabs, workspaceImageFigure, skinFieldsGroup, simulatedOutput, mobileProjectDialog, mobileProjectToggle, sidebarPane, workspacePane, welcomeScroller, sourceEditor, documentName, inspectorSourceToggle, quickInspector } from "./dom"
 
@@ -197,11 +197,12 @@ export function wireMobileStudio(): void {
     settingsWorkspace.dataset.mobileSettings = "index"
     $("#settings-title").textContent = "设置"
   }
-  const settingsBack = iconButton("arrow-left", "返回设置", () => {
+  const settingsBack = iconButton("arrow-left", "返回设置", event => {
     settingsIndex()
-    $("#settings-title").focus({ preventScroll: true })
+    focusSettingsTitle(event)
   })
   settingsBack.classList.add("mobile-settings-back")
+  settingsBack.setAttribute("data-ios-glass-action", "")
   settingsWorkspace.querySelector(".settings-header")!.prepend(settingsBack)
   settingsWorkspace.addEventListener("settings-enter", () => {
     if (mobilePortraitQuery.matches) settingsIndex()
@@ -229,7 +230,7 @@ export function wireMobileStudio(): void {
   const modelLink = element("button", "ui-list-item mobile-model-link")
   modelLink.type = "button"
   modelLink.append(createIcon("sparkles"), "AI 模型", createIcon("chevron-right"))
-  modelLink.addEventListener("click", () => showSettingsPage("model"))
+  modelLink.addEventListener("click", event => showSettingsPage("model", event))
   settingsWorkspace.querySelector(".settings-sidebar")!.insertBefore(modelLink, $("#settings-tab-about"))
   modelLink.hidden = !$("#settings-model-nav").hidden
   const unavailableModel = element("section", "mobile-model-unavailable")

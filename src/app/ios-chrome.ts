@@ -264,6 +264,7 @@ export function wireIOSChrome(): void {
       }
     }
     if (!projectOpen) for (const element of controls) {
+      if (settings.contains(element) && !element.hasAttribute("data-ios-glass-action")) continue
       if (element.closest("#mobile-navigation, #workspace-navigation, #preview, .simulation, .ui-project-card, .ui-segmented, #files")
         || (element.closest(".ui-menu") && !element.matches(".ui-button, .ui-icon-button"))
         || element.matches('[role="tab"], [role="option"], [role="treeitem"]')) continue
@@ -322,7 +323,7 @@ export function wireIOSChrome(): void {
   const changes: MutationObserverInit = {
     subtree: true, childList: true, characterData: true, attributes: true,
     attributeFilter: ["class", "style", "open", "hidden", "disabled", "inert", "aria-busy", "aria-pressed", "aria-selected",
-      "aria-current", "aria-label", "aria-disabled", "data-app-theme", "data-mobile-page", "data-keyboard-open", "data-variant", "data-state"],
+      "aria-current", "aria-label", "aria-disabled", "data-app-theme", "data-mobile-page", "data-keyboard-open", "data-variant", "data-state", "data-ios-glass-action"],
   }
   observer.observe(root, changes)
   document.addEventListener("load", schedule, true)

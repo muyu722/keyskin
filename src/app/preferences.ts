@@ -52,7 +52,15 @@ const settingsDescriptions: Record<string, string> = {
   about: "查看版本、更新、诊断与反馈入口。",
 }
 
-export function showSettingsPage(page: string): void {
+export function focusSettingsTitle(event?: MouseEvent): void {
+  const title = settingsWorkspace.querySelector<HTMLElement>("#settings-title")!
+  // UIKit dispatches an untrusted DOM click while keeping its own focus feedback.
+  const pointer = event && (event.detail > 0 || (!event.isTrusted && document.documentElement.hasAttribute("data-ios-native-chrome")))
+  title.toggleAttribute("data-pointer-focus", Boolean(pointer))
+  title.focus({ preventScroll: true })
+}
+
+export function showSettingsPage(page: string, event?: MouseEvent): void {
   const target = settingsPages.find(panel => panel.dataset.settingsPanel === page && !panel.hasAttribute("data-platform-hidden"))
     ?? settingsPages.find(panel => !panel.hasAttribute("data-platform-hidden"))
   if (!target) return
@@ -64,7 +72,7 @@ export function showSettingsPage(page: string): void {
     settingsWorkspace.dataset.mobileSettings = "detail"
     const title = settingsWorkspace.querySelector<HTMLElement>("#settings-title")!
     title.textContent = ({ appearance: "外观设置", canvas: "预览与画布设置", files: "文件设置", source: "源代码设置", model: "AI 模型设置", about: "关于与帮助" } as Record<string, string>)[current] ?? category
-    if (!settingsWorkspace.hidden) title.focus({ preventScroll: true })
+    if (!settingsWorkspace.hidden) focusSettingsTitle(event)
   }
   const changed = target.hidden
   for (const panel of settingsPages) panel.hidden = panel !== target

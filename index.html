@@ -858,8 +858,8 @@
                   <div class="source-directory-setting">
                     <span class="settings-path">
                       <input id="source-directory" type="text" autocomplete="off" spellcheck="false" aria-label="皮肤源码保存目录">
-                      <button id="choose-source-directory" class="ui-icon-button" type="button" title="选择目录" aria-label="选择皮肤源码保存目录"><span class="system-symbol" data-icon="folder" aria-hidden="true"></span></button>
-                      <button id="reset-source-directory" class="ui-icon-button" type="button" title="恢复内置目录" aria-label="恢复内置皮肤源码保存目录"><span class="system-symbol" data-icon="undo-2" aria-hidden="true"></span></button>
+                      <button id="choose-source-directory" data-ios-glass-action class="ui-icon-button" type="button" title="选择目录" aria-label="选择皮肤源码保存目录"><span class="system-symbol" data-icon="folder" aria-hidden="true"></span></button>
+                      <button id="reset-source-directory" data-ios-glass-action class="ui-icon-button" type="button" title="恢复内置目录" aria-label="恢复内置皮肤源码保存目录"><span class="system-symbol" data-icon="undo-2" aria-hidden="true"></span></button>
                     </span>
                     <small id="source-directory-status"></small>
                   </div>
@@ -884,7 +884,7 @@
                 <div class="settings-group-header">
                   <h3 id="model-chat-title">对话模型</h3>
                   <details id="model-profile-add" class="model-add-menu">
-                    <summary class="ui-button" data-size="sm"><span class="system-symbol" data-icon="plus" aria-hidden="true"></span>添加服务商</summary>
+                    <summary class="ui-button" data-size="sm" data-ios-glass-action><span class="system-symbol" data-icon="plus" aria-hidden="true"></span>添加服务商</summary>
                     <div class="ui-menu" role="menu" aria-label="添加服务商"></div>
                   </details>
                   <label class="ui-button model-add-select" data-size="sm" hidden>
@@ -896,7 +896,7 @@
                 <p class="settings-group-note">AI 设计通过这些模型修改皮肤。Claude 和 ChatGPT 订阅可直接登录账号使用。排在第一位的服务商为默认，AI 面板会记住上次选择的模型。密钥和登录凭据只保存在本机。</p>
                 <ul id="model-profiles" class="model-profiles" aria-label="已配置服务商"></ul>
                 <div id="model-editor" class="model-editor" hidden>
-                  <div id="model-account-row" class="settings-row" hidden><span>账号</span><span class="model-account"><small id="model-account-text"></small><button id="model-account-action" class="ui-button" type="button"></button></span></div>
+                  <div id="model-account-row" class="settings-row" hidden><span>账号</span><span class="model-account"><small id="model-account-text"></small><button id="model-account-action" data-ios-glass-action class="ui-button" type="button"></button></span></div>
                   <label class="settings-row"><span>服务商</span><span class="ui-input ui-select"><select id="model-provider"></select></span></label>
                   <label class="settings-row"><span>API 地址</span><input id="model-api-url" type="url" autocomplete="url" spellcheck="false" placeholder="https://api.openai.com/v1"></label>
                   <label class="settings-row"><span>API 密钥</span><span class="ui-input settings-secret"><input id="model-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"><button id="toggle-model-api-key" class="ui-icon-button" data-size="sm" type="button" title="显示 API 密钥" aria-label="显示 API 密钥"><span class="system-symbol" data-icon="eye" aria-hidden="true"></span></button></span></label>
@@ -905,15 +905,15 @@
                     <div class="model-choices-panel">
                       <div class="model-choices-tools">
                         <span class="ui-input"><span class="ui-input-affix" data-icon="search" aria-hidden="true"></span><input id="model-name" type="text" autocomplete="off" spellcheck="false" placeholder="筛选，或输入模型 ID 后回车添加" aria-label="筛选或添加模型 ID"></span>
-                        <button id="model-name-add" class="ui-icon-button" type="button" title="添加输入的模型 ID" aria-label="添加输入的模型 ID"><span class="system-symbol" data-icon="plus" aria-hidden="true"></span></button>
-                        <button id="refresh-model-list" class="ui-button" type="button" title="从服务商获取可用模型列表"><span class="system-symbol" data-icon="rotate-cw" aria-hidden="true"></span>获取列表</button>
+                        <button id="model-name-add" data-ios-glass-action class="ui-icon-button" type="button" title="添加输入的模型 ID" aria-label="添加输入的模型 ID"><span class="system-symbol" data-icon="plus" aria-hidden="true"></span></button>
+                        <button id="refresh-model-list" data-ios-glass-action class="ui-button" type="button" title="从服务商获取可用模型列表"><span class="system-symbol" data-icon="rotate-cw" aria-hidden="true"></span>获取列表</button>
                       </div>
                       <ul id="model-choices" class="model-choices" aria-label="可用模型"></ul>
                     </div>
                   </div>
                   <label class="settings-row"><span>思考等级配置</span><span class="ui-input ui-select"><select id="model-thinking-target" aria-label="选择要配置思考等级的模型"></select></span></label>
                   <label class="settings-row"><span>自定义思考等级<small>留空自动识别，填写后覆盖自动识别；用逗号分隔</small></span><input id="model-thinking-override" type="text" autocomplete="off" spellcheck="false" placeholder="off, minimal, low, medium, high, xhigh, max" maxlength="120"></label>
-                  <div class="model-editor-footer"><p id="model-configuration-status" role="status" aria-live="polite"></p><button id="test-model-connection" class="ui-button" type="button">测试连接</button></div>
+                  <div class="model-editor-footer"><p id="model-configuration-status" role="status" aria-live="polite"></p><button id="test-model-connection" data-ios-glass-action class="ui-button" type="button">测试连接</button></div>
                 </div>
               </section>
               <section class="settings-group" aria-labelledby="model-image-title">
@@ -921,10 +921,10 @@
                 <p id="image-model-hint" class="settings-group-note">AI 设计需要为按键或底板生成新图案时调用；只改颜色不需要配置。</p>
                 <label class="settings-row"><span>服务商</span><span class="ui-input ui-select"><select id="image-model-provider" aria-describedby="image-model-hint"></select></span></label>
                 <div id="image-model-fields" hidden>
-                  <div id="image-model-account-row" class="settings-row" hidden><span>账号</span><span class="model-account"><small id="image-model-account-text"></small><button id="image-model-account-action" class="ui-button" type="button"></button></span></div>
+                  <div id="image-model-account-row" class="settings-row" hidden><span>账号</span><span class="model-account"><small id="image-model-account-text"></small><button id="image-model-account-action" data-ios-glass-action class="ui-button" type="button"></button></span></div>
                   <label class="settings-row"><span>API 地址</span><input id="image-model-api-url" type="url" autocomplete="url" spellcheck="false"></label>
                   <label class="settings-row"><span>API 密钥</span><span class="ui-input settings-secret"><input id="image-model-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…"><button id="toggle-image-model-api-key" class="ui-icon-button" data-size="sm" type="button" title="显示 API 密钥" aria-label="显示 API 密钥"><span class="system-symbol" data-icon="eye" aria-hidden="true"></span></button></span></label>
-                  <div class="settings-row"><span>模型</span><span class="model-image-name"><input id="image-model-name" type="text" list="image-model-options" autocomplete="off" spellcheck="false" aria-label="生图模型"><button id="refresh-image-model-list" class="ui-button" type="button" title="从服务商获取生图模型列表"><span class="system-symbol" data-icon="rotate-cw" aria-hidden="true"></span>获取列表</button></span><datalist id="image-model-options"></datalist></div>
+                  <div class="settings-row"><span>模型</span><span class="model-image-name"><input id="image-model-name" type="text" list="image-model-options" autocomplete="off" spellcheck="false" aria-label="生图模型"><button id="refresh-image-model-list" data-ios-glass-action class="ui-button" type="button" title="从服务商获取生图模型列表"><span class="system-symbol" data-icon="rotate-cw" aria-hidden="true"></span>获取列表</button></span><datalist id="image-model-options"></datalist></div>
                   <p id="image-model-status" role="status" aria-live="polite" hidden></p>
                 </div>
               </section>
@@ -942,14 +942,14 @@
                 <label class="settings-row"><span>设备目录<small>留空使用输入法专属目录；手心的 .piska 导入入口从「下载」目录读取</small></span><input id="adb-directory" type="text" autocomplete="off" spellcheck="false" placeholder="未设置"></label>
                 <label class="settings-row"><span>输入法包名<small>百度 / 搜狗 / 手心按包名识别；定制版请填写对应包名</small></span><input id="adb-package" type="text" autocomplete="off" spellcheck="false" placeholder="com.baidu.input"></label>
                 <label class="settings-row"><span>导入 Activity<small>留空使用目标输入法默认入口；手心为 .FTInputSettingsActivity</small></span><input id="adb-activity" type="text" autocomplete="off" spellcheck="false" placeholder="未设置"></label>
-                <div class="settings-row"><span>连接状态<small id="adb-test-status" role="status">尚未测试连接</small></span><button id="adb-test" class="ui-button" type="button">测试连接</button></div>
+                <div class="settings-row"><span>连接状态<small id="adb-test-status" role="status">尚未测试连接</small></span><button id="adb-test" data-ios-glass-action class="ui-button" type="button">测试连接</button></div>
               </section>
               <section class="settings-group" aria-labelledby="settings-adb-pair-title">
                 <h3 id="settings-adb-pair-title">无线调试配对</h3>
                 <p class="settings-group-note">Android 11 及以上：打开手机“无线调试 → 使用配对码配对设备”，填写上方设备 IP、下方配对端口和六位配对码。配对成功后，用无线调试主页的连接端口测试连接。配对码不是锁屏密码；第三方模拟器的专有密码认证不适用此流程。</p>
                 <label class="settings-row"><span>配对端口<small>与连接端口通常不同</small></span><input id="adb-pair-port" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="未设置"></label>
                 <label class="settings-row"><span>一次性配对码<small>不保存；用完或关闭设置即清除</small></span><input data-adb-pair-code type="password" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="一次性配对码" placeholder="未设置"></label>
-                <div class="settings-row"><span>配对状态<small id="adb-pair-status" role="status">尚未配对；USB / 传统网络 ADB 无需配对码，请在设备端允许调试授权</small></span><button id="adb-pair" class="ui-button" type="button">配对设备</button></div>
+                <div class="settings-row"><span>配对状态<small id="adb-pair-status" role="status">尚未配对；USB / 传统网络 ADB 无需配对码，请在设备端允许调试授权</small></span><button id="adb-pair" data-ios-glass-action class="ui-button" type="button">配对设备</button></div>
               </section>
             </section>
 
@@ -967,14 +967,14 @@
                 <p class="settings-group-note">如您认为键设侵犯了您的合法权益，请加入官方 QQ 技术交流群（群号：228040912）联系我们。我们会第一时间核实，并在确认后立即下架相关内容。感谢您的理解与支持。</p>
               </section>
               <section class="settings-group">
-                <div id="about-update" class="settings-row" data-current-version="2.0.41"><span>版本更新<small id="update-status" aria-live="polite">正在检查更新…</small><a id="download-update" href="https://github.com/rekazer0/keyskin/releases" target="_blank" rel="noreferrer" hidden>查看最新版本</a></span><button id="check-update" class="ui-button" type="button">检查更新</button></div>
-                <div id="about-diagnostics" class="settings-row" hidden><span>诊断日志<small id="export-logs-status" aria-live="polite">用于排查软件卡顿与皮肤解析异常，不包含皮肤文件正文。</small></span><button id="export-logs" class="ui-button" type="button">导出日志 ZIP</button></div>
-                <div class="settings-row"><span>技术交流与反馈</span><span class="about-contact-actions"><button id="copy-qq-group" class="ui-button" type="button">QQ群：228040912</button><a href="https://github.com/rekazer0/keyskin" target="_blank" rel="noreferrer">GitHub</a></span></div>
+                <div id="about-update" class="settings-row" data-current-version="2.0.41"><span>版本更新<small id="update-status" aria-live="polite">正在检查更新…</small><a id="download-update" href="https://github.com/rekazer0/keyskin/releases" target="_blank" rel="noreferrer" hidden>查看最新版本</a></span><button id="check-update" data-ios-glass-action class="ui-button" type="button">检查更新</button></div>
+                <div id="about-diagnostics" class="settings-row" hidden><span>诊断日志<small id="export-logs-status" aria-live="polite">用于排查软件卡顿与皮肤解析异常，不包含皮肤文件正文。</small></span><button id="export-logs" data-ios-glass-action class="ui-button" type="button">导出日志 ZIP</button></div>
+                <div class="settings-row"><span>技术交流与反馈</span><span class="about-contact-actions"><button id="copy-qq-group" data-ios-glass-action class="ui-button" type="button">QQ群：228040912</button><a href="https://github.com/rekazer0/keyskin" target="_blank" rel="noreferrer">GitHub</a></span></div>
               </section>
             </section>
             </div>
           </div>
-          <footer class="settings-footer"><div id="settings-save-state" role="status"><span class="settings-state-dot" aria-hidden="true"></span><span id="settings-dirty-label">所有更改已保存</span><small id="settings-saved-at"></small></div><div class="settings-footer-actions"><button id="settings-cancel" class="ui-button" data-size="lg" type="button">取消</button><button id="settings-save" class="ui-button" data-variant="primary" data-size="lg" type="button">保存</button></div></footer>
+          <footer class="settings-footer"><div id="settings-save-state" role="status"><span class="settings-state-dot" aria-hidden="true"></span><span id="settings-dirty-label">所有更改已保存</span><small id="settings-saved-at"></small></div><div class="settings-footer-actions"><button id="settings-cancel" data-ios-glass-action class="ui-button" data-size="lg" type="button">取消</button><button id="settings-save" data-ios-glass-action class="ui-button" data-variant="primary" data-size="lg" type="button">保存</button></div></footer>
         </form>
       </section>
     </main>

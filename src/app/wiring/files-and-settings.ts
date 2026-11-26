@@ -17,7 +17,7 @@ import { runFileOperation, readBrowserSkinFile, showImage, showStatus, showError
 import { openNative, saveArchive, currentExportFormat, shareArchiveToMobile, writeToChosenFile, isSupportedSkinPath, loadDroppedFile, openSkinBytes, UNSUPPORTED_SKIN_MESSAGE } from "../archive-io"
 import { renderRecentFiles, wireRecentPage } from "../recent-files"
 import { dismissLayoutOverview } from "../layout-overview"
-import { refreshUpdateStatus, settingsController, showSettingsPage, nativeSettings, savedDefaultDevice, applyCanvasBackground, initialCanvasBackground, applyEditorCrosshairSetting, applyAppTheme, systemTheme, savedSourceFontSize, applySourceFontSize, saveSourceFontSize, initializeWindowMaterial, handleWindowMaterialError, applyWindowMaterialWithRetry, currentWindowMaterialOpacity, applyWindowMaterialOpacity, startWindowsWindowDrag, restoreWindowMaterialAfterDrag, applySourceEditorFeatures, setCanvasDropState } from "../preferences"
+import { refreshUpdateStatus, settingsController, showSettingsPage, focusSettingsTitle, nativeSettings, savedDefaultDevice, applyCanvasBackground, initialCanvasBackground, applyEditorCrosshairSetting, applyAppTheme, systemTheme, savedSourceFontSize, applySourceFontSize, saveSourceFontSize, initializeWindowMaterial, handleWindowMaterialError, applyWindowMaterialWithRetry, currentWindowMaterialOpacity, applyWindowMaterialOpacity, startWindowsWindowDrag, restoreWindowMaterialAfterDrag, applySourceEditorFeatures, setCanvasDropState } from "../preferences"
 import { clientLogZip, clientLog } from "../../client-log.ts"
 import { applyAiDesignDraft, discardAiDesignDraft, toggleAiDraftComparison } from "../ai-panel"
 import { activateSourceWorkspace, chooseAndroidSourceDirectory, applySourceDirectory } from "../source-workspace"
@@ -215,6 +215,7 @@ export function wireFilesAndSettings(): void {
     qqGroupReset = window.setTimeout(() => { copyQqGroupButton.textContent = qqGroupLabel }, 1400)
   })
   const settingsTitle = $("#settings-title")
+  settingsTitle.addEventListener("blur", () => settingsTitle.removeAttribute("data-pointer-focus"))
   let settingsTrigger: HTMLElement | undefined
   let confirmingSettingsExit = false
   settingsWorkspace.addEventListener("settings-exit", () => {
@@ -223,7 +224,7 @@ export function wireFilesAndSettings(): void {
     button.focus({ preventScroll: true })
   })
   for (const button of settingsEntryButtons) {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", event => {
       const entry = button.dataset.settingsEntry!
       const opening = settingsWorkspace.hidden
       if (opening) {
@@ -232,9 +233,9 @@ export function wireFilesAndSettings(): void {
         settingsWorkspace.hidden = false
         settingsWorkspace.dispatchEvent(new Event("settings-enter"))
       }
-      if (entry !== "settings") showSettingsPage(entry)
+      if (entry !== "settings") showSettingsPage(entry, event)
       for (const menu of toolbarMenus) menu.open = false
-      if (opening || entry !== "settings") settingsTitle.focus({ preventScroll: true })
+      if (opening || entry !== "settings") focusSettingsTitle(event)
     })
   }
   const leaveSettings = async (next?: HTMLButtonElement) => {
@@ -270,7 +271,7 @@ export function wireFilesAndSettings(): void {
     queueMicrotask(() => void leaveSettings(button))
   }, true)
   for (const button of settingsNavItems) {
-    button.addEventListener("click", () => showSettingsPage(button.dataset.settingsPage ?? "appearance"))
+    button.addEventListener("click", event => showSettingsPage(button.dataset.settingsPage ?? "appearance", event))
     button.addEventListener("keydown", (event) => {
       if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
       event.preventDefault()

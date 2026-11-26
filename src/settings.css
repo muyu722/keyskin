@@ -28,6 +28,7 @@
   border-bottom: 1px solid transparent;
 }
 #settings-workspace .settings-header h2 { margin: 0; font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+#settings-title[data-pointer-focus] { outline: none; }
 
 /* —— 分类导航 —— */
 #settings-workspace .settings-layout {
