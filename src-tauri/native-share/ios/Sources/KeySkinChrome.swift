@@ -117,6 +117,7 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         tabController.view.backgroundColor = .clear
         overlay.addSubview(tabController.view)
         overlay.bar = tabController.tabBar
+        tabController.tabBar.tintColor = .systemPurple
         tabController.didMove(toParent: parent)
         overlay.actions.frame = overlay.bounds
         overlay.actions.autoresizingMask = [.flexibleWidth, .flexibleHeight]
