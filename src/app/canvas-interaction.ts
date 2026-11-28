@@ -348,7 +348,9 @@ export function releaseKeySound(): void {
 
 async function playDecodedSound(path: string, bytes: Uint8Array, audio: HTMLAudioElement, onEnd: () => void): Promise<void> {
   appState.keySoundContext ??= new AudioContext()
-  if (appState.keySoundContext.state === "suspended") await appState.keySoundContext.resume()
+  if (appState.keySoundContext.state !== "running") {
+    await appState.keySoundContext.resume()
+  }
   let buffer = keySoundBuffers.get(path)
   if (!buffer) {
     try {
@@ -419,9 +421,9 @@ export function playSoundPath(path: string, onFinished?: (error?: string) => voi
       if (appState.keySoundAudio !== audio) return
       try {
         await audio.play()
-      } catch {
-        failed(error)
-      }
+      } catch (playError) {
+        failed(playError)
+     }
     }
   })()
 }

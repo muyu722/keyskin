@@ -2397,7 +2397,7 @@ body:has(.canvas-wrap.empty) .titlebar :is(.desktop-quick-actions, .mobile-quick
 .welcome-hero { display: flex; justify-content: space-between; align-items: center; gap: var(--space-xl); }
 .welcome-hero h1 { margin: 0; color: var(--text); font-family: var(--font-home-heading); font-size: var(--font-size-homehero); font-weight: 600; line-height: 1.5; }
 .welcome-hero p { margin: var(--space-sm) 0 0; color: var(--tertiary); font-size: var(--font-size-md); line-height: 1.6; }
-.welcome-hero > .ui-button { flex: none; height: auto; min-height: var(--control-height-lg); gap: var(--space-sm); padding: var(--space-sm) var(--space-lg); }
+.welcome-hero > .ui-button { flex: none; height: 44px; min-height: var(--control-height-lg); gap: var(--space-sm); padding: var(--space-sm) var(--space-lg); }
 .welcome-hero kbd { color: color-mix(in srgb, currentColor 80%, transparent); font-family: var(--font-ui); font-size: var(--font-size-xs); font-weight: 400; }
 .welcome-section { display: flex; flex-direction: column; gap: var(--space-xl); }
 .welcome-section-head { display: flex; align-items: center; gap: var(--space-sm); }
@@ -2713,6 +2713,9 @@ body:has(.canvas-wrap.empty) .titlebar :is(.desktop-quick-actions, .mobile-quick
   #mobile-inspector-resize > span { width: var(--mobile-control-height); height: var(--space-xs); border-radius: var(--radius-full); background: var(--line-strong); }
   :root[data-mobile-pane="inspector"] .preview-zoom-control { display: none; }
   .preview-zoom-control { right: var(--space-lg); bottom: var(--space-lg); gap: 0; padding: var(--space-2xs); border-radius: var(--radius-full); background: var(--panel); box-shadow: var(--shadow-sm); }
+  :root[data-mobile-preview="true"] .preview-zoom-control {
+      bottom: calc(var(--mobile-navigation-height) + var(--space-lg));
+  }
   .preview-overview-control { right: auto; left: var(--space-lg); }
   .preview-zoom-control > .ui-icon-button { --_height: var(--control-height-lg); border-radius: var(--radius-full); }
 
@@ -2853,16 +2856,18 @@ body:has(.canvas-wrap.empty) .titlebar :is(.desktop-quick-actions, .mobile-quick
   :root[data-mobile-source]:not([data-mobile-settings-open]) main { --_bottom-surface: var(--source-background); }
   :root[data-mobile-page="ai"]:not([data-mobile-settings-open]) main { --_bottom-surface: var(--material-panel); }
   :root[data-mobile-welcome="false"] #mobile-project-toggle { display: grid; place-items: center; }
-  .titlebar { gap: var(--space-2xs); padding-inline: max(var(--space-sm), var(--safe-area-left)) max(var(--space-sm), var(--safe-area-right)); }
+  .titlebar { gap: 8px; padding-inline: max(var(--space-sm), var(--safe-area-left)) max(var(--space-sm), var(--safe-area-right)); }
   :root[data-mobile-welcome="true"] .titlebar { display: none; }
   :root[data-mobile-welcome="true"] body.app-window main { height: calc(var(--viewport-height) - var(--mobile-navigation-height)); }
   :root[data-mobile-welcome="true"] main > .workspace { grid-template-rows: minmax(0, 1fr); }
   main > aside, main > .workspace { height: 100%; }
   .preview-toolbar {
-    --_skin-state-width: calc(var(--mobile-control-height) + var(--space-xl));
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    padding: 0 max(var(--space-md), var(--safe-area-right)) 0 max(var(--space-md), var(--safe-area-left));
-  }
+  --_skin-state-width: calc(var(--mobile-control-height) + var(--space-xl));
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 0 max(var(--space-md), var(--safe-area-right)) 0 max(var(--space-md), var(--safe-area-left));
+  gap: 8px;
+  background: transparent;
+}
   .preview-toolbar .ui-icon-button { --_height: var(--mobile-control-height); }
   .preview-toolbar .ui-select { height: var(--mobile-control-height); }
   /* Compact the visible surface without shrinking the touch targets. */

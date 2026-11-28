@@ -265,10 +265,12 @@ export function wireIOSChrome(): void {
     }
     if (!projectOpen) for (const element of controls) {
       if (settings.contains(element) && !element.hasAttribute("data-ios-glass-action")) continue
+      if (element.matches(".ui-sound-row > .ui-icon-button")) continue
       if (element.closest("#mobile-navigation, #workspace-navigation, #preview, .simulation, .ui-project-card, .ui-segmented, #files")
         || (element.closest(".ui-menu") && !element.matches(".ui-button, .ui-icon-button"))
         || element.matches('[role="tab"], [role="option"], [role="treeitem"]')) continue
       const rect = element.getBoundingClientRect()
+      if (rect.width > 100 && rect.height > 100) continue
       const parentFrame = element.ownerDocument.defaultView?.frameElement
       const frameRect = parentFrame?.getBoundingClientRect()
       const left = rect.left + (frameRect?.left ?? 0) + (parentFrame?.clientLeft ?? 0)

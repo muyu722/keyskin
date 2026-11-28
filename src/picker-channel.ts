@@ -1,7 +1,7 @@
 import { emitTo, listen } from "@tauri-apps/api/event"
 
 // 图片切片 / 全部图片 / 全部样式共用 picker.html：桌面端是原生窗口，走 Tauri 事件；网页端和安卓（不能另开窗口）嵌在主页面的 iframe 里，走 postMessage。
-export const nativePickerWindow = "__TAURI_INTERNALS__" in window && !/Android/i.test(navigator.userAgent)
+export const nativePickerWindow = "__TAURI_INTERNALS__" in window && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 export function pickerEmitter(tauriTarget: string, peer: () => Window | null | undefined) {
   return async (event: string, payload: unknown = {}): Promise<void> => {

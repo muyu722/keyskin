@@ -83,7 +83,7 @@
 .source #mobile-inspector-groups {
   flex: none;
   display: grid;
-  gap: var(--space-sm);
+  gap: 10px;
   width: 100%;
   padding-top: var(--space-sm);
   position: relative;
@@ -95,6 +95,7 @@
   justify-items: center;
   gap: var(--space-2xs);
   width: 100%;
+  min-height: 52px;
   padding: var(--space-xs) 0;
   border: 0;
   border-radius: var(--radius-md);

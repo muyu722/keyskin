@@ -834,6 +834,29 @@ body {
 .ui-sound-preview [data-error="true"] { color: var(--state-danger); }
 .ui-sound-row .ui-list-item:active { background: color-mix(in srgb, var(--text) 10%, transparent); }
 @container (max-width: 304px) { .ui-sound-size { display: none; } }
+@media (max-width: 760px) and (orientation: portrait) {
+    .ui-sound-preview {
+        max-height: 35vh;
+        overflow-y: auto;
+        gap: 6px;
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    .ui-sound-waveform {
+        height: 40px;
+    }
+
+    .ui-sound-actions {
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .ui-sound-actions > .ui-button {
+        white-space: nowrap;
+        font-size: 13px;
+    }
+}
 
 /* —— 样式配置卡片 —— */
 /* 同一个 grid 用于样式库与动画 / 样式列表：卡片最小 --style-card-width，随容器拉伸，宽到放得下就加一列。 */

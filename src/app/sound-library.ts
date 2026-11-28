@@ -55,7 +55,11 @@ export function renderSoundLibrary(entries: SoundEntry[], onSelect: () => void, 
   const audition = (entry: SoundEntry) => {
     const stopping = appState.keySoundPath === entry.path
     if (!appState.selectedResourceGalleryPaths.includes(entry.id)) selectGalleryItem(entry.id)
-    if (stopping) { releaseKeySound(); return }
+    if (stopping) {
+        releaseKeySound()
+        updatePlaying()
+        return
+    }
     releaseKeySound()
     status.dataset.error = "false"
     status.textContent = `正在试听 ${entry.filename}`

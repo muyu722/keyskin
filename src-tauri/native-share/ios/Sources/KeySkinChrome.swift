@@ -80,9 +80,31 @@ private func configureGlass(_ button: UIButton, _ item: ChromeItem, image: UIIma
     configuration.title = item.title.isEmpty ? nil : item.title
     configuration.image = image
     configuration.imagePadding = item.title.isEmpty ? 0 : 5
-    configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 3, bottom: 0, trailing: 3)
+configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
+configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+    var outgoing = incoming
+    outgoing.font = UIFont.systemFont(ofSize: 15, weight: .medium)
+    return outgoing
+}
+configuration.titleLineBreakMode = .byTruncatingTail
+        if ["布局", "样式", "动画", "音效", "文字"].contains(item.title) {
+        configuration.imagePlacement = .top
+        configuration.imagePadding = 3
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 2, bottom: 4, trailing: 2)
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = UIFont.systemFont(ofSize: 11, weight: .medium)
+            return outgoing
+        }
+    }
+    if item.primary {
+            configuration.baseBackgroundColor = .systemPurple
+    }
     configuration.showsActivityIndicator = item.busy
     button.configuration = configuration
+    button.titleLabel?.numberOfLines = 1
+    button.titleLabel?.adjustsFontSizeToFitWidth = true
+    button.titleLabel?.minimumScaleFactor = 0.8
     button.isEnabled = item.enabled && !item.busy
     button.isSelected = item.selected
     button.accessibilityLabel = item.label
@@ -171,7 +193,7 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
                 controller.tabBarItem.accessibilityIdentifier = "keyskin-tab-\(item.id)"
                 controllers[item.id] = controller
             }
-            controller.tabBarItem.isEnabled = item.enabled
+            controller.tabBarItem.isEnabled = item.enabled || item.selected
             return controller
         }
         let existing = tabController.viewControllers ?? []

@@ -48,7 +48,7 @@
   /* 圆角：按层级逐级增大，内层圆角 ≤ 外层 */
   --radius-sm: 6px;      /* 角标、色块、控件内的小块 */
   --radius-md: 8px;      /* 按钮、输入框、列表行、分段控件 */
-  --radius-button: var(--radius-md);
+  --radius-button: 999px;
   --radius-lg: 12px;     /* 卡片、菜单、浮层 */
   --radius-xl: 16px;     /* 对话框、底部 sheet */
   --radius-full: 999px;  /* 胶囊、圆点 */
