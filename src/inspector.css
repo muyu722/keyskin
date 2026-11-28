@@ -79,6 +79,9 @@
 }
 .source .inspector-rail::before { content: ""; position: absolute; inset-block: var(--space-xs); left: 0; width: 1px; background: var(--line-soft); border-radius: var(--radius-full); pointer-events: none; }
 .source .inspector-rail::-webkit-scrollbar { display: none; }
+.source .inspector-rail[data-ios-native-surface] { background: none; border-color: transparent; box-shadow: none; }
+.source .inspector-rail[data-ios-native-surface]::before,
+.source .inspector-rail[data-ios-native-surface]::after { content: none; }
 .source .inspector-rail > .inspector-filter-open { flex: none; width: 100%; }
 .source #mobile-inspector-groups {
   flex: none;

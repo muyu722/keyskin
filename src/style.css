@@ -515,6 +515,17 @@ aside:has(.raw-files:not([hidden])) #files { height: 100%; }
   left: 14px;
 }
 
+/* Only a confirmed UIKit control can release its dedicated web backplate. */
+:root .preview-zoom-control.glass-module[data-ios-native-surface] {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root .preview-zoom-control[data-ios-native-surface]::before,
+:root .preview-zoom-control[data-ios-native-surface]::after { content: none; }
+
 /* 全局预览：盖在画布上的布局网格，缩放平移由脚本写 transform，画布本身的键盘同时淡出。
    停手后网格按显示倍率（--_scale）重新排版，transform 只缩小不放大：WebKit 把合成层按 1 倍栅格化，放大会糊 */
 .layout-overview {

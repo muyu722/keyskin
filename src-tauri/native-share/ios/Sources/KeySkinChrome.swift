@@ -11,14 +11,24 @@ private struct ChromeItem: Decodable, Equatable {
     let selected: Bool
     let primary: Bool
     let busy: Bool
+    var stacked: Bool? = nil
 }
 
-private struct ChromeAction: Decodable {
-    let item: ChromeItem
+private struct ChromeRect: Decodable {
     let x: CGFloat
     let y: CGFloat
     let width: CGFloat
     let height: CGFloat
+
+    func frame(origin: CGPoint, scale: CGFloat) -> CGRect {
+        CGRect(x: origin.x + x * scale, y: origin.y + y * scale, width: width * scale, height: height * scale)
+    }
+}
+
+private struct ChromeAction: Decodable {
+    let item: ChromeItem
+    let box: ChromeRect
+    let clip: ChromeRect
 }
 
 private struct ProjectRow: Decodable, Equatable {
@@ -35,6 +45,8 @@ private struct ProjectSnapshot: Decodable, Equatable {
 }
 
 private struct ChromeSnapshot: Decodable {
+    let session: String
+    let sequence: Int
     let tabs: [ChromeItem]
     let showTabs: Bool
     let dark: Bool
@@ -55,6 +67,7 @@ private struct ChromeEvent: Encodable {
     let id: String
     var x: CGFloat? = nil
     var y: CGFloat? = nil
+    var taps: Int? = nil
 }
 
 private class ChromeOverlay: UIView {
@@ -63,6 +76,7 @@ private class ChromeOverlay: UIView {
     let actions = UIView()
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard !isHidden, isUserInteractionEnabled, bounds.contains(point) else { return nil }
         if let project = project, !project.isHidden {
             return project.hitTest(convert(point, to: project), with: event)
         }
@@ -74,31 +88,30 @@ private class ChromeOverlay: UIView {
 }
 
 @available(iOS 26.0, *)
+@MainActor
 private func configureGlass(_ button: UIButton, _ item: ChromeItem, image: UIImage?) {
     var configuration = item.primary ? UIButton.Configuration.prominentGlass() : .glass()
     configuration.cornerStyle = .capsule
     configuration.title = item.title.isEmpty ? nil : item.title
     configuration.image = image
     configuration.imagePadding = item.title.isEmpty ? 0 : 5
-configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
-configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-    var outgoing = incoming
-    outgoing.font = UIFont.systemFont(ofSize: 15, weight: .medium)
-    return outgoing
-}
-configuration.titleLineBreakMode = .byTruncatingTail
-        if ["布局", "样式", "动画", "音效", "文字"].contains(item.title) {
+    let stacked = item.stacked == true
+    configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
+    configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+        var outgoing = incoming
+        outgoing.font = UIFont.systemFont(ofSize: stacked ? 11 : 15, weight: .medium)
+        return outgoing
+    }
+    configuration.titleLineBreakMode = .byTruncatingTail
+    if stacked {
         configuration.imagePlacement = .top
         configuration.imagePadding = 3
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 2, bottom: 4, trailing: 2)
-        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-            var outgoing = incoming
-            outgoing.font = UIFont.systemFont(ofSize: 11, weight: .medium)
-            return outgoing
-        }
     }
     if item.primary {
-            configuration.baseBackgroundColor = .systemPurple
+        configuration.baseBackgroundColor = .systemPurple
+    } else if item.selected {
+        configuration.baseForegroundColor = .systemPurple
     }
     configuration.showsActivityIndicator = item.busy
     button.configuration = configuration
@@ -113,12 +126,25 @@ configuration.titleLineBreakMode = .byTruncatingTail
 }
 
 @available(iOS 26.0, *)
+private final class ActionSlot: UIView {
+    let button = UIButton(type: .system)
+    var item: ChromeItem?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        addSubview(button)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
+
+@available(iOS 26.0, *)
 private final class ChromeController: NSObject, UITabBarControllerDelegate {
     private let overlay = ChromeOverlay()
     private let tabController = UITabBarController()
     private let project = ProjectPanel()
     private var controllers: [String: UIViewController] = [:]
-    private var buttons: [String: UIButton] = [:]
+    private var slots: [String: ActionSlot] = [:]
     private var icons: [String: UIImage] = [:]
     private var events: Channel?
     private weak var webview: WKWebView?
@@ -130,6 +156,7 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         self.webview = webview
         super.init()
         overlay.frame = parent.view.bounds
+        overlay.isHidden = true
         overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         tabController.traitOverrides.horizontalSizeClass = .compact
         tabController.delegate = self
@@ -140,6 +167,16 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         overlay.addSubview(tabController.view)
         overlay.bar = tabController.tabBar
         tabController.tabBar.tintColor = .systemPurple
+        tabController.tabBar.unselectedItemTintColor = .secondaryLabel
+        let appearance = tabController.tabBar.standardAppearance
+        for layout in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance, appearance.compactInlineLayoutAppearance] {
+            for (state, color) in [(layout.selected, UIColor.systemPurple), (layout.normal, .secondaryLabel), (layout.disabled, .tertiaryLabel)] {
+                state.iconColor = color
+                state.titleTextAttributes[.foregroundColor] = color
+            }
+        }
+        tabController.tabBar.standardAppearance = appearance
+        tabController.tabBar.scrollEdgeAppearance = appearance
         tabController.didMove(toParent: parent)
         overlay.actions.frame = overlay.bounds
         overlay.actions.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -173,10 +210,28 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         return false
     }
 
-    func apply(_ snapshot: ChromeSnapshot, events: Channel?) {
+    func dismiss() {
+        overlay.isHidden = true
+    }
+
+    func detach() {
+        tabController.willMove(toParent: nil)
+        tabController.view.removeFromSuperview()
+        tabController.removeFromParent()
+        overlay.removeFromSuperview()
+    }
+
+    func apply(_ snapshot: ChromeSnapshot, events: Channel?) -> Bool {
         if let events { self.events = events }
+        guard self.events != nil, let webview, let window = webview.window, overlay.window === window,
+              snapshot.width > 0, snapshot.height > 0 else { dismiss(); return false }
+        let viewport = overlay.convert(webview.bounds, from: webview)
+        guard viewport.width > 0, viewport.height > 0 else { dismiss(); return false }
+        scale = viewport.width / snapshot.width
+        origin = viewport.origin
         overlay.overrideUserInterfaceStyle = snapshot.dark ? .dark : .light
         tabController.overrideUserInterfaceStyle = overlay.overrideUserInterfaceStyle
+        let needsProjectIcons = ["x", "plus"].contains { icons[$0] == nil && snapshot.icons[$0] != nil }
         for (key, value) in snapshot.icons where icons[key] == nil {
             if let data = Data(base64Encoded: value), let image = UIImage(data: data) {
                 let size = key.hasPrefix("tab:") ? CGFloat(23) : CGFloat(16)
@@ -185,6 +240,9 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
                 }.withRenderingMode(.alwaysTemplate)
             }
         }
+        guard snapshot.actions.allSatisfy({ action in
+            !action.item.title.isEmpty || action.item.busy || action.item.icon.flatMap { icons[$0] } != nil
+        }) else { dismiss(); return false }
         let next = snapshot.tabs.map { item -> UIViewController in
             let controller = controllers[item.id] ?? UIViewController()
             if controllers[item.id] == nil {
@@ -193,7 +251,9 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
                 controller.tabBarItem.accessibilityIdentifier = "keyskin-tab-\(item.id)"
                 controllers[item.id] = controller
             }
-            controller.tabBarItem.isEnabled = item.enabled || item.selected
+            if controller.tabBarItem.image == nil, let key = item.icon { controller.tabBarItem.image = icons[key] }
+            // UIKit gives disabled appearance precedence over selected. The web route guards actual activation.
+            controller.tabBarItem.isEnabled = item.selected || item.enabled
             return controller
         }
         let existing = tabController.viewControllers ?? []
@@ -207,7 +267,7 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
         tabController.tabBar.accessibilityIdentifier = "keyskin-native-tab-bar"
 
         if let projectSnapshot = snapshot.project {
-            if lastProject != projectSnapshot {
+            if lastProject != projectSnapshot || needsProjectIcons {
                 project.apply(projectSnapshot, icons: icons)
                 lastProject = projectSnapshot
             }
@@ -224,44 +284,44 @@ private final class ChromeController: NSObject, UITabBarControllerDelegate {
             lastProject = nil
         }
 
-        guard let webview = webview, snapshot.width > 0, snapshot.height > 0 else { return }
-        let viewport = overlay.convert(webview.bounds, from: webview)
-        scale = viewport.width / snapshot.width
-        guard scale > 0 else { return }
-        origin = viewport.origin
         let visible = snapshot.project == nil ? snapshot.actions : []
         let ids = Set(visible.map { $0.item.id })
-        for id in Array(buttons.keys) where !ids.contains(id) { buttons.removeValue(forKey: id)?.removeFromSuperview() }
+        for id in Array(slots.keys) where !ids.contains(id) { slots.removeValue(forKey: id)?.removeFromSuperview() }
         for action in visible {
             let item = action.item
-            let button = buttons[item.id] ?? UIButton(type: .system)
-            if buttons[item.id] == nil {
+            let slot = slots[item.id] ?? ActionSlot(frame: .zero)
+            let button = slot.button
+            if slot.superview == nil {
                 button.accessibilityIdentifier = "keyskin-native-\(item.id)"
                 button.addTarget(self, action: #selector(activate(_:event:)), for: .primaryActionTriggered)
                 button.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(pan(_:))))
-                buttons[item.id] = button
-                overlay.actions.addSubview(button)
+                slots[item.id] = slot
+                overlay.actions.addSubview(slot)
             }
-            var frame = CGRect(x: origin.x + action.x * scale, y: origin.y + action.y * scale,
-                               width: action.width * scale, height: action.height * scale)
-            if item.title.isEmpty {
-                let diameter = min(frame.width, frame.height)
-                frame = CGRect(x: frame.midX - diameter / 2, y: frame.midY - diameter / 2, width: diameter, height: diameter)
+            let frame = action.box.frame(origin: origin, scale: scale)
+            let clip = action.clip.frame(origin: origin, scale: scale)
+            slot.frame = clip
+            slot.clipsToBounds = clip != frame
+            button.frame = frame.offsetBy(dx: -clip.minX, dy: -clip.minY)
+            if slot.item != item {
+                configureGlass(button, item, image: item.icon.flatMap { icons[$0] })
+                slot.item = item
             }
-            button.frame = frame
-            configureGlass(button, item, image: item.icon.flatMap { icons[$0] })
         }
+        overlay.isHidden = false
+        return true
     }
 
     @objc private func activate(_ sender: UIButton, event: UIEvent?) {
-        guard let id = buttons.first(where: { $0.value === sender })?.key else { return }
-        let point = event?.allTouches?.first?.location(in: overlay) ?? CGPoint(x: sender.frame.midX, y: sender.frame.midY)
-        send(ChromeEvent(kind: "action", id: id, x: (point.x - origin.x) / scale, y: (point.y - origin.y) / scale))
+        guard let slot = sender.superview as? ActionSlot, let id = slot.item?.id else { return }
+        let touch = event?.allTouches?.first
+        let point = touch?.location(in: overlay) ?? CGPoint(x: slot.frame.midX, y: slot.frame.midY)
+        send(ChromeEvent(kind: "action", id: id, x: (point.x - origin.x) / scale, y: (point.y - origin.y) / scale, taps: touch?.tapCount))
     }
 
     @objc private func pan(_ gesture: UIPanGestureRecognizer) {
         guard gesture.state == .changed, let view = gesture.view,
-              let id = buttons.first(where: { $0.value === view })?.key else { return }
+              let slot = view.superview as? ActionSlot, let id = slot.item?.id else { return }
         let delta = gesture.translation(in: overlay)
         gesture.setTranslation(.zero, in: overlay)
         send(ChromeEvent(kind: "pan", id: id, x: delta.x / scale, y: delta.y / scale))
@@ -384,22 +444,60 @@ private final class ProjectPanel: UIVisualEffectView, UISearchBarDelegate {
 private final class KeySkinChromePlugin: Plugin {
     private weak var webview: WKWebView?
     private var chrome: AnyObject?
+    private var dismissedThrough: [String: Int] = [:]
+    private var lastApplied: (session: String, sequence: Int)?
 
-    @objc override func load(webview: WKWebView) { self.webview = webview }
+    @objc override func load(webview: WKWebView) {
+        DispatchQueue.main.async {
+            if #available(iOS 26.0, *) {
+                self.webview?.configuration.userContentController.removeScriptMessageHandler(forName: "keyskinDismissChrome")
+                (self.chrome as? ChromeController)?.detach()
+                self.chrome = nil
+                self.dismissedThrough.removeAll()
+                self.lastApplied = nil
+                webview.configuration.userContentController.add(self, name: "keyskinDismissChrome")
+            }
+            self.webview = webview
+        }
+    }
 
     @objc func syncChrome(_ invoke: Invoke) throws {
         guard #available(iOS 26.0, *) else { invoke.resolve(false); return }
         let args = try invoke.parseArgs(ChromeArgs.self)
         DispatchQueue.main.async {
+            guard args.snapshot.sequence > (self.dismissedThrough[args.snapshot.session] ?? 0) else {
+                invoke.reject("WebView released this snapshot")
+                return
+            }
+            if let applied = self.lastApplied, applied.session == args.snapshot.session, applied.sequence >= args.snapshot.sequence {
+                invoke.reject("A newer snapshot is already active")
+                return
+            }
             guard let parent = self.manager.viewController, let webview = self.webview else {
-                invoke.resolve(false)
+                (self.chrome as? ChromeController)?.dismiss()
+                invoke.reject("WebView is unavailable")
                 return
             }
             let controller = self.chrome as? ChromeController ?? ChromeController(parent: parent, webview: webview)
             self.chrome = controller
-            controller.apply(args.snapshot, events: args.events)
-            invoke.resolve(true)
+            if controller.apply(args.snapshot, events: args.events) {
+                self.lastApplied = (args.snapshot.session, args.snapshot.sequence)
+                invoke.resolve(true)
+            } else {
+                invoke.reject("Native chrome could not present this snapshot")
+            }
         }
+    }
+}
+
+extension KeySkinChromePlugin: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard #available(iOS 26.0, *), message.frameInfo.isMainFrame, message.webView === webview,
+              let data = message.body as? [String: Any], let session = data["session"] as? String,
+              let sequence = data["sequence"] as? Int else { return }
+        dismissedThrough[session] = max(sequence, dismissedThrough[session] ?? 0)
+        guard let applied = lastApplied, applied.session == session, applied.sequence <= sequence else { return }
+        (chrome as? ChromeController)?.dismiss()
     }
 }
 

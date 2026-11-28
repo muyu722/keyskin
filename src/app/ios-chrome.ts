@@ -1,12 +1,12 @@
 import { Channel, invoke } from "@tauri-apps/api/core"
 import { createIcon } from "../icons"
 import { isTauri, mobilePortraitQuery } from "./canvas-interaction"
-import { appState } from "./state"
+import { actionGeometry, hit, topClientPoint, type ChromeBox } from "./ios-chrome-geometry"
 import { closeDialog } from "../motion"
 
-type ChromeEvent = { kind: "tab" | "action" | "project" | "segment" | "search" | "pan"; id: string; x?: number; y?: number }
-type ChromeItem = { id: string; title: string; label: string; icon?: string; enabled: boolean; selected: boolean; primary: boolean; busy: boolean }
-type ChromeAction = { item: ChromeItem; x: number; y: number; width: number; height: number }
+type ChromeEvent = { kind: "tab" | "action" | "project" | "segment" | "search" | "pan"; id: string; x?: number; y?: number; taps?: number }
+type ChromeItem = { id: string; title: string; label: string; icon?: string; enabled: boolean; selected: boolean; primary: boolean; busy: boolean; stacked?: boolean }
+type ChromeAction = { item: ChromeItem; box: ChromeBox; clip: ChromeBox }
 
 const actionSelector = 'button, summary.ui-button, summary.ui-icon-button, [role="button"].ui-button, [role="button"].ui-icon-button'
 const tabItems = [
@@ -19,18 +19,6 @@ const tabItems = [
 
 function buttonDisabled(element: HTMLElement): boolean {
   return element.matches(':disabled, [aria-disabled="true"]') || Boolean(element.closest("[inert]"))
-}
-
-function hit(element: HTMLElement, x: number, y: number): boolean {
-  let target = document.elementFromPoint(x, y)
-  const frame = element.ownerDocument.defaultView?.frameElement
-  if (frame instanceof HTMLIFrameElement) {
-    if (target !== frame) return false
-    const rect = frame.getBoundingClientRect()
-    target = element.ownerDocument.elementFromPoint(x - rect.left - frame.clientLeft, y - rect.top - frame.clientTop)
-  }
-  return target !== null && (element.contains(target)
-    || (buttonDisabled(element) && target.contains(element) && target !== document.body && target !== document.documentElement))
 }
 
 function renderIcon(name: string): Promise<string> {
@@ -62,23 +50,30 @@ export function wireIOSChrome(): void {
   const desktopNav = document.querySelector<HTMLElement>("#workspace-navigation")!
   const settings = document.querySelector<HTMLElement>("#settings-workspace")!
   const project = document.querySelector<HTMLDialogElement>("#mobile-project-dialog")!
-  const events = new Channel<ChromeEvent>()
+  let events: Channel<ChromeEvent> | undefined
   const ids = new WeakMap<HTMLElement, string>()
   const icons = new Map<string, string>()
+  const sentIcons = new Set<string>()
+  const session = Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-")
+  let sequence = 0
   const loadingIcons = new Set<string>()
   const activeElements = new Set<HTMLElement>()
+  const surfaces = new Set<HTMLElement>()
   const frameDocuments = new WeakSet<Document>()
   const accessibility = new WeakMap<HTMLElement, string | null>()
   const tabStops = new WeakMap<HTMLElement, string | null>()
+  let watchedLayout = new Set<Element>()
+  const resize = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : undefined
+  let nativeClips = new Map<string, ChromeBox>()
   let nextId = 0
   let frame = 0
   let pending = false
   let sending = false
+  let suspended = false
+  let generation = 0
   let supported: boolean | undefined
   let previous = ""
   let actions = new Map<string, HTMLElement>()
-  let actionOffsetX = 0
-  let actionOffsetY = 0
   let projectActions = new Map<string, HTMLElement>()
 
   function icon(name: string | undefined, isTab = false): string | undefined {
@@ -94,7 +89,10 @@ export function wireIOSChrome(): void {
   function item(element: HTMLElement, title = element.innerText.trim().replace(/\s+/g, " ")): ChromeItem {
     let id = ids.get(element)
     if (!id) {
-      id = element.id && element.ownerDocument === document ? element.id : `action-${++nextId}`
+      // Inspector rebuilds its DOM on object changes. A category retains its UIKit button.
+      id = element.matches("#mobile-inspector-groups > button")
+        ? `rail:${element.dataset.mobileInspectorGroup ?? "link"}:${title}`
+        : element.id && element.ownerDocument === document ? element.id : `action-${++nextId}`
       ids.set(element, id)
     }
     const busy = element.getAttribute("aria-busy") === "true" || element.dataset.state === "busy"
@@ -104,6 +102,7 @@ export function wireIOSChrome(): void {
       enabled: !buttonDisabled(element),
       selected: element.getAttribute("aria-pressed") === "true" || element.getAttribute("aria-selected") === "true",
       primary: element.dataset.variant === "primary",
+      stacked: element.matches("#mobile-inspector-groups > button"),
       busy,
     }
   }
@@ -117,7 +116,7 @@ export function wireIOSChrome(): void {
       : desktopNav.querySelector(`[data-workspace-page="${tab[3]}"]`)
   }
 
-  function projectContent() {
+  function projectContent(projectActions: Map<string, HTMLElement>) {
     const source = project.querySelector<HTMLElement>('[data-sidebar-view="source"]')
     const segment = source?.getAttribute("aria-pressed") === "true" ? 1 : 0
     const rows = [...project.querySelectorAll<HTMLElement>(
@@ -150,9 +149,10 @@ export function wireIOSChrome(): void {
     return { segment, rows, tools, search: search && !search.closest("[hidden]") ? search.value : undefined }
   }
 
-  events.onmessage = event => {
+  function handleEvent(event: ChromeEvent): void {
     if (event.kind === "tab") {
-      if (!document.querySelector("dialog[open]")) route(event.id)?.click()
+      const target = route(event.id)
+      if (!document.querySelector("dialog[open]") && target && !target.hidden && !buttonDisabled(target)) target.click()
     } else if (event.kind === "pan") {
       const element = actions.get(event.id)
       if (!element?.isConnected || event.x === undefined || event.y === undefined) return
@@ -170,9 +170,12 @@ export function wireIOSChrome(): void {
       }
     } else if (event.kind === "action") {
       const element = actions.get(event.id)
-      if (!element?.isConnected || buttonDisabled(element) || event.x === undefined || event.y === undefined
-        || !hit(element, event.x + actionOffsetX, event.y + actionOffsetY)) return
+      if (!element?.isConnected || buttonDisabled(element) || element.getAttribute("aria-busy") === "true"
+        || element.dataset.state === "busy" || event.x === undefined || event.y === undefined || !hit(element, event.x, event.y)) return
       element.click()
+      if (event.taps === 2 && element.id === "preview-zoom-fit") {
+        element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }))
+      }
     } else if (project.open) {
       if (event.kind === "segment") {
         project.querySelector<HTMLElement>(event.id === "1" ? '[data-sidebar-view="source"]' : '[data-sidebar-view="overview"]')?.click()
@@ -191,9 +194,12 @@ export function wireIOSChrome(): void {
   }
 
   function schedule(): void {
-    if (supported === false) return
+    if (supported === false || suspended) return
     pending = true
-    if (!frame && !sending) frame = requestAnimationFrame(() => { frame = 0; void render() })
+    if (!frame && !sending) frame = requestAnimationFrame(() => {
+      frame = 0
+      void render().catch(() => { restoreWeb(); supported = undefined })
+    })
   }
 
   function syncActionElements(next: Map<string, HTMLElement>): void {
@@ -219,37 +225,54 @@ export function wireIOSChrome(): void {
       element.tabIndex = -1
       activeElements.add(element)
     }
+    const nextSurfaces = new Set<HTMLElement>()
+    for (const element of visible) {
+      const surface = element.closest<HTMLElement>(".preview-zoom-control.glass-module, .inspector-rail")
+      if (surface) nextSurfaces.add(surface)
+    }
+    for (const surface of surfaces) if (!nextSurfaces.has(surface)) {
+      surface.removeAttribute("data-ios-native-surface")
+      surfaces.delete(surface)
+    }
+    for (const surface of nextSurfaces) if (!surfaces.has(surface)) {
+      surface.setAttribute("data-ios-native-surface", "")
+      surfaces.add(surface)
+    }
   }
 
   async function render(): Promise<void> {
-    if (!pending) return
+    if (!pending || suspended || sending) return
     pending = false
     const viewport = window.visualViewport
-    const offsetX = viewport?.offsetLeft ?? 0
-    const offsetY = viewport?.offsetTop ?? 0
     const width = viewport?.width ?? window.innerWidth
     const height = viewport?.height ?? window.innerHeight
     const keyboard = root.dataset.keyboardOpen === "true" || height < window.innerHeight * 0.8
-    const modal = (CSS.supports("selector(dialog:modal)") ? document.querySelector<HTMLDialogElement>("dialog:modal:last-of-type") : null)
-      ?? [...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].at(-1)
+    const dialogs = [...document.querySelectorAll<HTMLDialogElement>("dialog[open]")]
+    // The focused dialog follows the browser's top layer, including nested pickers.
+    const modal = dialogs.length > 1
+      ? document.elementFromPoint(width / 2, height / 2)?.closest<HTMLDialogElement>("dialog[open]")
+        ?? document.activeElement?.closest<HTMLDialogElement>("dialog[open]") ?? dialogs.at(-1)
+      : dialogs[0]
     const projectOpen = project.open && (!modal || modal === project)
-    const activeTab = settings.hidden
-      ? mobilePortraitQuery.matches ? root.dataset.mobilePage : desktopNav.querySelector<HTMLElement>('[aria-current="page"]')?.dataset.workspacePage
-      : "settings"
-    const tabs = tabItems.map(([id, title, name, desktop]) => {
+    const current = (mobilePortraitQuery.matches ? mobileNav : desktopNav).querySelector<HTMLElement>('[aria-current="page"]')
+    const page = current?.dataset.mobilePage ?? current?.dataset.workspacePage
+    const activeTab = !settings.hidden ? "settings" : page === "source" || page === "animation" ? "edit"
+      : tabItems.find(([id, , , desktop]) => id === page || desktop === page)?.[0] ?? (root.dataset.mobilePage || "home")
+    const tabs = tabItems.flatMap(([id, title, name]) => {
       const target = route(id)
-      return {
+      if (!target || target.hidden) return []
+      return [{
         id, title, label: title, icon: icon(name, true),
-        enabled: id === "home" || id === "settings" || (Boolean(appState.archive) && !appState.fileOperationRunning
-          && target !== null && !target.hidden && !buttonDisabled(target)),
-        selected: (mobilePortraitQuery.matches ? id : desktop) === (activeTab || (mobilePortraitQuery.matches ? "home" : "files")),
+        enabled: !buttonDisabled(target),
+        selected: id === activeTab,
         primary: false, busy: false,
-      }
+      }]
     })
-    if (tabs.some(tab => !tab.icon)) return
-    projectActions = new Map()
+    const nextProjectActions = new Map<string, HTMLElement>()
     const nextActions = new Map<string, HTMLElement>()
-    const visible: ChromeAction[] = []
+    let visible: ChromeAction[] = []
+    const layout = new Set<Element>([root, document.body])
+    const measure = actionGeometry(width, height, layout)
     const scope = modal ?? document
     const frames = [...scope.querySelectorAll("iframe")].filter(element => element.getClientRects().length && element.contentDocument)
     const controls = [...scope.querySelectorAll<HTMLElement>(actionSelector)]
@@ -259,64 +282,108 @@ export function wireIOSChrome(): void {
       if (!frameDocuments.has(content)) {
         frameDocuments.add(content)
         observer.observe(content.documentElement, changes)
-        content.addEventListener("scroll", schedule, true)
-        content.addEventListener("click", preventWebTap, true)
+        observeDocument(content)
       }
+    }
+    // WAAPI page slides and dialog transitions can move controls without another DOM mutation.
+    for (const doc of [document, ...frames.map(frame => frame.contentDocument!)]) {
+      const moving = doc.getAnimations?.().some(animation => {
+        const effect = animation.effect as KeyframeEffect | null
+        const target = effect?.target
+        return animation.playState === "running" && effect?.getTiming().iterations !== Infinity && target
+          && (target.matches(actionSelector) || target.querySelector(actionSelector))
+          && effect.getKeyframes().some(key => "transform" in key || "translate" in key || "opacity" in key)
+      })
+      if (moving) { schedule(); break }
     }
     if (!projectOpen) for (const element of controls) {
       if (settings.contains(element) && !element.hasAttribute("data-ios-glass-action")) continue
-      if (element.matches(".ui-sound-row > .ui-icon-button")) continue
+      if (element.matches('.ui-sound-row > .ui-icon-button, [data-readonly="true"] :disabled')) continue
       if (element.closest("#mobile-navigation, #workspace-navigation, #preview, .simulation, .ui-project-card, .ui-segmented, #files")
         || (element.closest(".ui-menu") && !element.matches(".ui-button, .ui-icon-button"))
-        || element.matches('[role="tab"], [role="option"], [role="treeitem"]')) continue
-      const rect = element.getBoundingClientRect()
-      if (rect.width > 100 && rect.height > 100) continue
-      const parentFrame = element.ownerDocument.defaultView?.frameElement
-      const frameRect = parentFrame?.getBoundingClientRect()
-      const left = rect.left + (frameRect?.left ?? 0) + (parentFrame?.clientLeft ?? 0)
-      const top = rect.top + (frameRect?.top ?? 0) + (parentFrame?.clientTop ?? 0)
-      const x = left - offsetX
-      const y = top - offsetY
-      if (rect.width < 20 || rect.height < 20 || x < 0 || y < 0 || x + rect.width > width + 1
-        || y + rect.height > height + 1 || getComputedStyle(element).visibility !== "visible") continue
-      const midX = left + rect.width / 2
-      const midY = top + rect.height / 2
-      if (![[midX, top + 2], [midX, top + rect.height - 2], [left + 2, midY], [left + rect.width - 2, midY], [midX, midY]]
-        .every(([pointX, pointY]) => hit(element, pointX, pointY))) continue
+        || element.matches('[role="tab"], [role="option"], [role="treeitem"], [role="slider"], .inspector-filter-close')) continue
+      const geometry = measure(element)
+      if (!geometry) continue
       const action = item(element)
       if (!action.label || (!action.title && !action.icon && !action.busy)) continue
-      visible.push({ item: action, x, y, width: rect.width, height: rect.height })
+      visible.push({ item: action, ...geometry })
       nextActions.set(action.id, element)
+    }
+    // A shared zoom backplate belongs to the web until its entire visible button group is ready.
+    const ready = new Set(nextActions.values())
+    for (const group of scope.querySelectorAll(".preview-zoom-control.glass-module")) {
+      const buttons = [...group.querySelectorAll<HTMLElement>(":scope > button")]
+      if (buttons.some(button => button.getClientRects().length && !ready.has(button))) {
+        for (const button of buttons) nextActions.delete(ids.get(button) ?? "")
+      }
+    }
+    visible = visible.filter(action => nextActions.has(action.item.id))
+    if (resize) {
+      for (const node of watchedLayout) if (!layout.has(node)) resize.unobserve(node)
+      for (const node of layout) if (!watchedLayout.has(node)) resize.observe(node)
+      watchedLayout = layout
     }
     const snapshot = {
       tabs, showTabs: !modal && !keyboard, dark: root.dataset.appTheme === "dark", width, height,
-      actions: visible, project: projectOpen ? projectContent() : undefined, icons: Object.fromEntries(icons),
-      offsetX, offsetY,
+      actions: visible, project: projectOpen ? projectContent(nextProjectActions) : undefined,
     }
-    const signature = JSON.stringify(snapshot)
-    if (signature === previous) { syncActionElements(nextActions); return }
+    const signature = JSON.stringify([snapshot, icons.size])
+    if (signature === previous) { projectActions = nextProjectActions; syncActionElements(nextActions); return }
     sending = true
+    const revision = generation
+    let timer: number | undefined
     try {
-      // Register the channel once so Tauri keeps a single sequence for native events.
-      supported = await invoke<boolean>("sync_ios_chrome", supported === undefined ? { snapshot, events } : { snapshot })
-      if (!supported) return
+      // Each Rust channel starts its own event sequence, including after recovery.
+      const register = !events
+      events ??= new Channel<ChromeEvent>(handleEvent)
+      const payload = { ...snapshot, session, sequence: ++sequence, icons: Object.fromEntries([...icons].filter(([key]) => !sentIcons.has(key))) }
+      const applied = await Promise.race([
+        invoke<boolean>("sync_ios_chrome", register ? { snapshot: payload, events } : { snapshot: payload }),
+        new Promise<never>((_, reject) => { timer = window.setTimeout(() => reject(new Error("UIKit acknowledgement timed out")), 2000) }),
+      ])
+      if (revision !== generation) { restoreWeb(); return }
+      supported = applied
+      if (!supported) { restoreWeb(); return }
+      for (const key of Object.keys(payload.icons)) sentIcons.add(key)
       previous = signature
-      actionOffsetX = offsetX
-      actionOffsetY = offsetY
+      nativeClips = new Map(visible.map(action => [action.item.id, action.clip]))
+      projectActions = nextProjectActions
       root.toggleAttribute("data-ios-native-chrome", true)
       root.toggleAttribute("data-ios-native-project", projectOpen)
       syncActionElements(nextActions)
     } catch {
-      // Keep the WebView controls usable if the native bridge is unavailable.
-      if (supported === undefined) supported = false
+      restoreWeb()
+      // Re-register the channel and image cache on a fresh controller.
+      supported = undefined
     } finally {
+      clearTimeout(timer)
       sending = false
       if (pending) schedule()
     }
   }
 
+  function restoreWeb(): void {
+    previous = ""
+    if (events) events.onmessage = () => {}
+    events = undefined
+    sentIcons.clear()
+    projectActions.clear()
+    nativeClips.clear()
+    syncActionElements(new Map())
+    root.removeAttribute("data-ios-native-project")
+    root.removeAttribute("data-ios-native-chrome")
+    // Independent of the Tauri command that just failed (or of Rust during pagehide).
+    const host = window as Window & { webkit?: { messageHandlers?: { keyskinDismissChrome?: { postMessage(value: object): void } } } }
+    host.webkit?.messageHandlers?.keyskinDismissChrome?.postMessage({ session, sequence })
+  }
+
   function preventWebTap(event: MouseEvent): void {
-    if (!event.isTrusted || !(event.target as HTMLElement | null)?.closest?.("[data-ios-native-action]")) return
+    if (!event.isTrusted || !event.detail) return
+    const element = (event.target as Element | null)?.closest?.<HTMLElement>("[data-ios-native-action]")
+    if (!element) return
+    const clip = nativeClips.get(ids.get(element) ?? "")
+    const point = topClientPoint(element, event.clientX, event.clientY)
+    if (!clip || point.x < clip.x || point.y < clip.y || point.x >= clip.x + clip.width || point.y >= clip.y + clip.height) return
     event.preventDefault()
     event.stopImmediatePropagation()
   }
@@ -324,17 +391,21 @@ export function wireIOSChrome(): void {
   const observer = new MutationObserver(schedule)
   const changes: MutationObserverInit = {
     subtree: true, childList: true, characterData: true, attributes: true,
-    attributeFilter: ["class", "style", "open", "hidden", "disabled", "inert", "aria-busy", "aria-pressed", "aria-selected",
-      "aria-current", "aria-label", "aria-disabled", "data-app-theme", "data-mobile-page", "data-keyboard-open", "data-variant", "data-state", "data-ios-glass-action"],
+    attributeFilter: ["class", "style", "open", "hidden", "disabled", "inert", "title", "aria-busy", "aria-pressed", "aria-selected",
+      "aria-current", "aria-label", "aria-disabled", "data-app-theme", "data-mobile-page", "data-mobile-pane", "data-mobile-mode",
+      "data-keyboard-open", "data-variant", "data-state", "data-ios-glass-action", "data-filter-miss"],
   }
   observer.observe(root, changes)
-  document.addEventListener("load", schedule, true)
-  if (typeof ResizeObserver === "function") new ResizeObserver(schedule).observe(document.body)
-  document.addEventListener("click", preventWebTap, true)
-  document.addEventListener("scroll", schedule, true)
+  function observeDocument(doc: Document): void {
+    doc.addEventListener("click", preventWebTap, true)
+    for (const name of ["scroll", "load", "toggle", "close", "transitionrun", "transitionend", "transitioncancel",
+      "animationstart", "animationend", "animationcancel"]) doc.addEventListener(name, schedule, true)
+  }
+  observeDocument(document)
+  window.addEventListener("pagehide", () => { suspended = true; generation++; restoreWeb() })
+  window.addEventListener("pageshow", () => { suspended = false; schedule() })
   window.addEventListener("resize", schedule)
   window.visualViewport?.addEventListener("resize", schedule)
   window.visualViewport?.addEventListener("scroll", schedule)
-  document.addEventListener("transitionend", schedule, true)
   schedule()
 }
